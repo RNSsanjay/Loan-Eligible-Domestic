@@ -4,25 +4,25 @@ A comprehensive web application for managing domestic animal loan applications w
 
 ## Features
 
-### 🎯 Multi-Role System
+### Multi-Role System
 - **Admin**: Create and manage managers, view system-wide analytics and reports
 - **Manager**: Create and manage operators, approve/reject loan applications, view team statistics
 - **Operator**: Create loan applications, manage applicants, verify loan eligibility with 8-point checklist
 
-### 🐄 Livestock Focus
+### Livestock Focus
 - Support for cattle (cows), goats, and hens
 - Detailed animal health and vaccination tracking
 - Market value assessment
 - Loan collateral management
 
-### 📋 Comprehensive Verification
+### Comprehensive Verification
 - 8-point verification checklist for operators
 - Health certificate verification
 - Vaccination record validation
 - Identity and financial document verification
 - Loan repayment capacity assessment
 
-### 💰 Loan Management
+### Loan Management
 - Complete loan application workflow
 - Applicant personal and family details
 - Bank account and financial information
