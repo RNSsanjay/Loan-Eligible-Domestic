@@ -4,6 +4,7 @@ import { Card } from '../common/Card';
 import { Input } from '../common/Input';
 import { Button } from '../common/Button';
 import { Loading } from '../common/Loading';
+import { ImageUpload } from '../common/ImageUpload';
 
 interface Manager {
   id: string;
@@ -19,6 +20,7 @@ interface CreateManagerData {
   name: string;
   email: string;
   phone: string;
+  profileImage?: File | null;
 }
 
 export const ManagerManagement: React.FC = () => {
@@ -32,7 +34,8 @@ export const ManagerManagement: React.FC = () => {
   const [createData, setCreateData] = useState<CreateManagerData>({
     name: '',
     email: '',
-    phone: ''
+    phone: '',
+    profileImage: null
   });
 
   useEffect(() => {
@@ -60,7 +63,7 @@ export const ManagerManagement: React.FC = () => {
     try {
       await adminAPI.createManager(createData);
       setSuccess('Manager created successfully! They will receive login instructions.');
-      setCreateData({ name: '', email: '', phone: '' });
+      setCreateData({ name: '', email: '', phone: '', profileImage: null });
       setShowCreateForm(false);
       loadManagers();
     } catch (err: any) {
@@ -72,6 +75,10 @@ export const ManagerManagement: React.FC = () => {
 
   const handleInputChange = (field: keyof CreateManagerData, value: string) => {
     setCreateData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleProfileImageChange = (file: File | null, preview: string | null) => {
+    setCreateData(prev => ({ ...prev, profileImage: file }));
   };
 
   const handleDeactivateManager = async (managerId: string) => {
@@ -160,6 +167,12 @@ export const ManagerManagement: React.FC = () => {
                   required
                   placeholder="Enter manager's phone number"
                 />
+
+                <ImageUpload
+                  label="Profile Picture"
+                  onChange={handleProfileImageChange}
+                  className="mt-4"
+                />
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
@@ -167,7 +180,7 @@ export const ManagerManagement: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setShowCreateForm(false);
-                    setCreateData({ name: '', email: '', phone: '' });
+                    setCreateData({ name: '', email: '', phone: '', profileImage: null });
                     setError('');
                   }}
                   variant="secondary"

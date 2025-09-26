@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import uvicorn
 from dotenv import load_dotenv
 import os
+from pathlib import Path
 
 from app.common.database import init_database
 from app.common.auth_routes import router as auth_router
@@ -41,6 +43,11 @@ app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(operator_router, prefix="/api/operator", tags=["Operator"])
 app.include_router(manager_router, prefix="/api/manager", tags=["Manager"])
 app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
+
+# Mount static files for uploads
+uploads_dir = Path("uploads")
+uploads_dir.mkdir(exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 @app.get("/")
 async def root():

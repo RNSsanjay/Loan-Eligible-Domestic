@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form
 from typing import List, Optional
 from bson import ObjectId
 from datetime import datetime
@@ -8,6 +8,7 @@ from ..common.models import (
 )
 from ..common.auth import get_current_active_user, get_password_hash
 from ..common.database import get_database
+from ..common.file_utils import save_profile_image, delete_profile_image
 
 router = APIRouter()
 
@@ -21,31 +22,55 @@ def require_admin(current_user: User = Depends(get_current_active_user)):
 
 @router.post("/managers", response_model=dict)
 async def create_manager(
-    manager_data: UserCreate,
+    name: str = Form(...),
+    email: str = Form(...),
+    phone: str = Form(...),
+    profile_image: Optional[UploadFile] = File(None),
     current_user: User = Depends(require_admin)
 ):
     db = await get_database()
     
-    # Ensure we're creating a manager
-    manager_data.role = UserRole.MANAGER
-    manager_data.created_by = ObjectId(current_user.id)
-    
     # Check if email already exists
-    existing = await db.users.find_one({"email": manager_data.email})
+    existing = await db.users.find_one({"email": email})
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User with this email already exists"
         )
     
-    user_dict = manager_data.model_dump()
-    user_dict["first_login"] = True
+    # Create manager data
+    user_dict = {
+        "name": name,
+        "email": email,
+        "phone": phone,
+        "role": UserRole.MANAGER,
+        "is_active": True,
+        "created_by": ObjectId(current_user.id),
+        "first_login": True,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
     
+    # Insert user first to get ID
     result = await db.users.insert_one(user_dict)
+    user_id = str(result.inserted_id)
+    
+    # Handle profile image upload
+    if profile_image and profile_image.filename:
+        try:
+            image_path = save_profile_image(profile_image, user_id)
+            await db.users.update_one(
+                {"_id": result.inserted_id},
+                {"$set": {"profile_image": image_path}}
+            )
+        except HTTPException:
+            # If image upload fails, delete the user and re-raise
+            await db.users.delete_one({"_id": result.inserted_id})
+            raise
     
     return {
-        "id": str(result.inserted_id),
-        "email": manager_data.email,
+        "id": user_id,
+        "email": email,
         "message": "Manager created successfully. They need to set their password on first login."
     }
 
@@ -358,12 +383,12 @@ async def get_system_stats(
     
     pending_applications = await db.loan_applications.count_documents({
         "operator_id": {"$in": all_operator_ids},
-        "status": LoanStatus.PENDING
+        "status": LoanStatus.VERIFIED
     })
     
     verification_pending = await db.loan_applications.count_documents({
         "operator_id": {"$in": all_operator_ids},
-        "status": LoanStatus.SUBMITTED
+        "status": LoanStatus.PENDING
     })
     
     approved_applications = await db.loan_applications.count_documents({
@@ -453,6 +478,280 @@ async def get_recent_activity(
     recent_activities.sort(key=lambda x: x["timestamp"], reverse=True)
     
     return recent_activities[:limit]
+
+@router.get("/reports/loan-applications", response_model=List[dict])
+async def get_loan_applications_report(
+    current_user: User = Depends(require_admin),
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    status: Optional[str] = None,
+    animal_type: Optional[str] = None
+):
+    """Generate loan applications report with filtering"""
+    db = await get_database()
+    
+    # Get all operators under this admin
+    managers = []
+    async for manager in db.users.find({
+        "role": UserRole.MANAGER,
+        "created_by": ObjectId(current_user.id)
+    }):
+        managers.append(manager)
+    
+    all_operator_ids = []
+    for manager in managers:
+        async for operator in db.users.find({
+            "role": UserRole.OPERATOR,
+            "created_by": ObjectId(manager["_id"])
+        }):
+            all_operator_ids.append(ObjectId(operator["_id"]))
+    
+    # Build query filter
+    query_filter = {"operator_id": {"$in": all_operator_ids}}
+    
+    if start_date:
+        start_datetime = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        query_filter["created_at"] = {"$gte": start_datetime}
+    
+    if end_date:
+        end_datetime = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+        if "created_at" in query_filter:
+            query_filter["created_at"]["$lte"] = end_datetime
+        else:
+            query_filter["created_at"] = {"$lte": end_datetime}
+    
+    if status:
+        query_filter["status"] = status
+        
+    if animal_type:
+        query_filter["animal_type"] = animal_type
+    
+    # Fetch loan applications
+    applications_report = []
+    async for app in db.loan_applications.find(query_filter).sort("created_at", -1):
+        # Get applicant details
+        applicant = await db.applicants.find_one({"_id": app["applicant_id"]})
+        
+        # Get animal details
+        animal = await db.animals.find_one({"_id": app["animal_id"]})
+        
+        # Get operator details
+        operator = await db.users.find_one({"_id": app["operator_id"]})
+        
+        report_entry = {
+            "id": str(app["_id"]),
+            "application_date": app.get("created_at", datetime.now()).isoformat(),
+            "applicant_name": applicant.get("name", "Unknown") if applicant else "Unknown",
+            "applicant_phone": applicant.get("phone", "N/A") if applicant else "N/A",
+            "applicant_email": applicant.get("email", "N/A") if applicant else "N/A",
+            "animal_type": animal.get("type", "N/A") if animal else "N/A",
+            "animal_breed": animal.get("breed", "N/A") if animal else "N/A",
+            "animal_age": animal.get("age", "N/A") if animal else "N/A",
+            "loan_amount": app.get("loan_amount", 0),
+            "loan_duration": app.get("loan_duration", 0),
+            "status": app.get("status", "PENDING"),
+            "operator_name": operator.get("name", "Unknown") if operator else "Unknown",
+            "verification_status": app.get("verification_status", "Not Verified"),
+            "approved_date": app.get("approved_at", "").isoformat() if app.get("approved_at") else None,
+            "rejected_date": app.get("rejected_at", "").isoformat() if app.get("rejected_at") else None,
+            "rejection_reason": app.get("rejection_reason", "")
+        }
+        applications_report.append(report_entry)
+    
+    return applications_report
+
+@router.get("/reports/managers-performance", response_model=List[dict])
+async def get_managers_performance_report(
+    current_user: User = Depends(require_admin)
+):
+    """Generate managers performance report"""
+    db = await get_database()
+    
+    performance_report = []
+    
+    async for manager in db.users.find({
+        "role": UserRole.MANAGER,
+        "created_by": ObjectId(current_user.id)
+    }):
+        # Count operators under this manager
+        operators_count = await db.users.count_documents({
+            "role": UserRole.OPERATOR,
+            "created_by": ObjectId(manager["_id"])
+        })
+        
+        # Get all operator IDs under this manager
+        operator_ids = []
+        async for operator in db.users.find({
+            "role": UserRole.OPERATOR,
+            "created_by": ObjectId(manager["_id"])
+        }):
+            operator_ids.append(ObjectId(operator["_id"]))
+        
+        # Count loan applications handled
+        total_applications = await db.loan_applications.count_documents({
+            "operator_id": {"$in": operator_ids}
+        })
+        
+        approved_applications = await db.loan_applications.count_documents({
+            "operator_id": {"$in": operator_ids},
+            "status": LoanStatus.APPROVED
+        })
+        
+        rejected_applications = await db.loan_applications.count_documents({
+            "operator_id": {"$in": operator_ids},
+            "status": LoanStatus.REJECTED
+        })
+        
+        pending_applications = await db.loan_applications.count_documents({
+            "operator_id": {"$in": operator_ids},
+            "status": LoanStatus.PENDING
+        })
+        
+        verified_applications = await db.loan_applications.count_documents({
+            "operator_id": {"$in": operator_ids},
+            "status": LoanStatus.VERIFIED
+        })
+        
+        # Calculate total approved loan amount
+        total_approved_amount = 0
+        async for app in db.loan_applications.find({
+            "operator_id": {"$in": operator_ids},
+            "status": LoanStatus.APPROVED
+        }):
+            total_approved_amount += app.get("loan_amount", 0)
+        
+        approval_rate = (approved_applications / total_applications * 100) if total_applications > 0 else 0
+        
+        performance_entry = {
+            "manager_id": str(manager["_id"]),
+            "manager_name": manager.get("name", "Unknown"),
+            "manager_email": manager.get("email", "Unknown"),
+            "operators_count": operators_count,
+            "total_applications": total_applications,
+            "approved_applications": approved_applications,
+            "rejected_applications": rejected_applications,
+            "pending_applications": pending_applications,
+            "verified_applications": verified_applications,
+            "total_approved_amount": total_approved_amount,
+            "approval_rate": round(approval_rate, 2),
+            "created_date": manager.get("created_at", datetime.now()).isoformat() if manager.get("created_at") else None,
+            "last_active": manager.get("last_login", "Never") if manager.get("last_login") else "Never"
+        }
+        performance_report.append(performance_entry)
+    
+    return performance_report
+
+@router.get("/reports/financial-summary", response_model=dict)
+async def get_financial_summary_report(
+    current_user: User = Depends(require_admin),
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """Generate financial summary report"""
+    db = await get_database()
+    
+    # Get all operators under this admin
+    managers = []
+    async for manager in db.users.find({
+        "role": UserRole.MANAGER,
+        "created_by": ObjectId(current_user.id)
+    }):
+        managers.append(manager)
+    
+    all_operator_ids = []
+    for manager in managers:
+        async for operator in db.users.find({
+            "role": UserRole.OPERATOR,
+            "created_by": ObjectId(manager["_id"])
+        }):
+            all_operator_ids.append(ObjectId(operator["_id"]))
+    
+    # Build query filter
+    query_filter = {"operator_id": {"$in": all_operator_ids}}
+    
+    if start_date:
+        start_datetime = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        query_filter["created_at"] = {"$gte": start_datetime}
+    
+    if end_date:
+        end_datetime = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+        if "created_at" in query_filter:
+            query_filter["created_at"]["$lte"] = end_datetime
+        else:
+            query_filter["created_at"] = {"$lte": end_datetime}
+    
+    # Calculate financial metrics
+    total_loan_requests = await db.loan_applications.count_documents(query_filter)
+    
+    approved_query = {**query_filter, "status": LoanStatus.APPROVED}
+    total_approved_loans = await db.loan_applications.count_documents(approved_query)
+    
+    # Calculate amounts by animal type
+    animal_wise_summary = {}
+    for animal_type in ["cow", "goat", "hen"]:
+        animal_query = {**approved_query, "animal_type": animal_type}
+        animal_count = await db.loan_applications.count_documents(animal_query)
+        animal_amount = 0
+        async for app in db.loan_applications.find(animal_query):
+            animal_amount += app.get("loan_amount", 0)
+        
+        animal_wise_summary[animal_type] = {
+            "count": animal_count,
+            "total_amount": animal_amount,
+            "average_amount": animal_amount / animal_count if animal_count > 0 else 0
+        }
+    
+    # Calculate total amounts
+    total_approved_amount = 0
+    total_requested_amount = 0
+    
+    async for app in db.loan_applications.find(approved_query):
+        total_approved_amount += app.get("loan_amount", 0)
+    
+    async for app in db.loan_applications.find(query_filter):
+        total_requested_amount += app.get("loan_amount", 0)
+    
+    # Calculate monthly breakdown (last 12 months)
+    monthly_breakdown = []
+    for i in range(11, -1, -1):
+        month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        month_start = month_start.replace(month=month_start.month - i if month_start.month > i else 12 + month_start.month - i)
+        month_end = month_start.replace(month=month_start.month + 1) if month_start.month < 12 else month_start.replace(year=month_start.year + 1, month=1)
+        
+        month_query = {
+            **query_filter,
+            "created_at": {"$gte": month_start, "$lt": month_end}
+        }
+        
+        month_applications = await db.loan_applications.count_documents(month_query)
+        month_approved = await db.loan_applications.count_documents({**month_query, "status": LoanStatus.APPROVED})
+        
+        month_amount = 0
+        async for app in db.loan_applications.find({**month_query, "status": LoanStatus.APPROVED}):
+            month_amount += app.get("loan_amount", 0)
+        
+        monthly_breakdown.append({
+            "month": month_start.strftime("%B %Y"),
+            "applications": month_applications,
+            "approved": month_approved,
+            "amount": month_amount
+        })
+    
+    return {
+        "total_loan_requests": total_loan_requests,
+        "total_approved_loans": total_approved_loans,
+        "total_requested_amount": total_requested_amount,
+        "total_approved_amount": total_approved_amount,
+        "approval_rate": (total_approved_loans / total_loan_requests * 100) if total_loan_requests > 0 else 0,
+        "average_loan_amount": total_approved_amount / total_approved_loans if total_approved_loans > 0 else 0,
+        "animal_wise_summary": animal_wise_summary,
+        "monthly_breakdown": monthly_breakdown,
+        "generated_at": datetime.now().isoformat(),
+        "period": {
+            "start_date": start_date,
+            "end_date": end_date
+        }
+    }
 
 @router.post("/create-initial-admin", response_model=dict)
 async def create_initial_admin(admin_data: UserCreate):

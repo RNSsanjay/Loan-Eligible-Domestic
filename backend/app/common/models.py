@@ -56,6 +56,7 @@ class UserBase(BaseModel):
     phone: str
     role: UserRole
     is_active: bool = True
+    profile_image: Optional[str] = None
 
 class UserCreate(UserBase):
     password: Optional[str] = None

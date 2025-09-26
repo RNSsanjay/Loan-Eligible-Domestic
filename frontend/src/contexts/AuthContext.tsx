@@ -85,12 +85,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       dispatch({ type: 'LOGIN_START' });
       const response = await authAPI.login({ email, password });
+      
+      // Check if this is a first login case (202 status means password setup required)
+      if (!response.access_token) {
+        // This is likely a first login case - the backend should have returned 202
+        // but axios converts it to a successful response. We need to handle this.
+        throw new Error('First login: password setup required');
+      }
+      
       localStorage.setItem('token', response.access_token);
       const user = await authAPI.getProfile();
       dispatch({ type: 'LOGIN_SUCCESS', payload: { user, token: response.access_token } });
     } catch (error: any) {
-      const message = error.response?.data?.detail || 'Login failed';
-      dispatch({ type: 'LOGIN_ERROR', payload: message });
+      // Check if it's a 202 status (first login)
+      if (error.response?.status === 202) {
+        const message = error.response?.data?.detail || 'Password setup required';
+        dispatch({ type: 'LOGIN_ERROR', payload: message });
+      } else {
+        const message = error.response?.data?.detail || 'Login failed';
+        dispatch({ type: 'LOGIN_ERROR', payload: message });
+      }
       throw error;
     }
   };

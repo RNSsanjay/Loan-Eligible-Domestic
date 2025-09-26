@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form
 from typing import List, Optional
 from bson import ObjectId
 from datetime import datetime
@@ -8,6 +8,7 @@ from ..common.models import (
 )
 from ..common.auth import get_current_active_user
 from ..common.database import get_database
+from ..common.file_utils import save_profile_image, delete_profile_image
 
 router = APIRouter()
 
@@ -21,31 +22,55 @@ def require_manager(current_user: User = Depends(get_current_active_user)):
 
 @router.post("/operators", response_model=dict)
 async def create_operator(
-    operator_data: UserCreate,
+    name: str = Form(...),
+    email: str = Form(...),
+    phone: str = Form(...),
+    profile_image: Optional[UploadFile] = File(None),
     current_user: User = Depends(require_manager)
 ):
     db = await get_database()
     
-    # Ensure we're creating an operator
-    operator_data.role = UserRole.OPERATOR
-    operator_data.created_by = ObjectId(current_user.id)
-    
     # Check if email already exists
-    existing = await db.users.find_one({"email": operator_data.email})
+    existing = await db.users.find_one({"email": email})
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User with this email already exists"
         )
     
-    user_dict = operator_data.model_dump()
-    user_dict["first_login"] = True
+    # Create operator data
+    user_dict = {
+        "name": name,
+        "email": email,
+        "phone": phone,
+        "role": UserRole.OPERATOR,
+        "is_active": True,
+        "created_by": ObjectId(current_user.id),
+        "first_login": True,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
     
+    # Insert user first to get ID
     result = await db.users.insert_one(user_dict)
+    user_id = str(result.inserted_id)
+    
+    # Handle profile image upload
+    if profile_image and profile_image.filename:
+        try:
+            image_path = save_profile_image(profile_image, user_id)
+            await db.users.update_one(
+                {"_id": result.inserted_id},
+                {"$set": {"profile_image": image_path}}
+            )
+        except HTTPException:
+            # If image upload fails, delete the user and re-raise
+            await db.users.delete_one({"_id": result.inserted_id})
+            raise
     
     return {
-        "id": str(result.inserted_id),
-        "email": operator_data.email,
+        "id": user_id,
+        "email": email,
         "message": "Operator created successfully. They need to set their password on first login."
     }
 

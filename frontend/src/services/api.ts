@@ -70,8 +70,20 @@ export const operatorAPI = {
 // Manager API
 export const managerAPI = {
   // Operators
-  createOperator: (data: any) =>
-    api.post('/manager/operators', data).then(res => res.data),
+  createOperator: (data: any) => {
+    const formData = new FormData();
+    formData.append('name', data.name);
+    formData.append('email', data.email);
+    formData.append('phone', data.phone);
+    if (data.profileImage) {
+      formData.append('profile_image', data.profileImage);
+    }
+    return api.post('/manager/operators', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }).then(res => res.data);
+  },
     
   getOperators: () =>
     api.get('/manager/operators').then(res => res.data),
@@ -100,11 +112,23 @@ export const managerAPI = {
     api.get('/manager/dashboard/stats').then(res => res.data),
 };
 
-// Admin API
+// Admin API       
 export const adminAPI = {
   // Managers
-  createManager: (data: any) =>
-    api.post('/admin/managers', data).then(res => res.data),
+  createManager: (data: any) => {
+    const formData = new FormData();
+    formData.append('name', data.name);
+    formData.append('email', data.email);
+    formData.append('phone', data.phone);
+    if (data.profileImage) {
+      formData.append('profile_image', data.profileImage);
+    }
+    return api.post('/admin/managers', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }).then(res => res.data);
+  },
     
   getManagers: () =>
     api.get('/admin/managers').then(res => res.data),
@@ -134,6 +158,16 @@ export const adminAPI = {
     
   getRecentActivity: () =>
     api.get('/admin/analytics/activity').then(res => res.data),
+    
+  // System Reports
+  getLoanApplicationsReport: (params?: any) =>
+    api.get('/admin/reports/loan-applications', { params }).then(res => res.data),
+    
+  getManagersPerformanceReport: () =>
+    api.get('/admin/reports/managers-performance').then(res => res.data),
+    
+  getFinancialSummaryReport: (params?: any) =>
+    api.get('/admin/reports/financial-summary', { params }).then(res => res.data),
     
   // Initial Admin
   createInitialAdmin: (data: any) =>

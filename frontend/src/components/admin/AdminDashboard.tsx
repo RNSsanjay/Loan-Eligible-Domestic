@@ -5,6 +5,7 @@ import { adminAPI } from '../../services/api';
 import { Loading } from '../common/Loading';
 import { ManagerManagement } from './ManagerManagement';
 import { SystemAnalytics } from './SystemAnalytics';
+import { SystemReports } from './SystemReports';
 
 export const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -19,7 +20,7 @@ export const AdminDashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Navigation Header */}
       <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-10xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <h1 className="text-xl font-semibold text-gray-900">
@@ -93,7 +94,7 @@ export const AdminDashboard: React.FC = () => {
             <Route path="/" element={<AdminHome />} />
             <Route path="/managers" element={<ManagerManagement />} />
             <Route path="/analytics" element={<SystemAnalytics />} />
-            <Route path="/reports" element={<div>System Reports - Coming Soon</div>} />
+            <Route path="/reports" element={<SystemReports />} />
           </Routes>
         </div>
       </div>
