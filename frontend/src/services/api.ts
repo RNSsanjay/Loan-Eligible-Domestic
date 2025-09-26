@@ -128,6 +128,13 @@ export const adminAPI = {
   getDashboardOverview: () =>
     api.get('/admin/dashboard/overview').then(res => res.data),
     
+  // System Analytics
+  getSystemStats: () =>
+    api.get('/admin/analytics/stats').then(res => res.data),
+    
+  getRecentActivity: () =>
+    api.get('/admin/analytics/activity').then(res => res.data),
+    
   // Initial Admin
   createInitialAdmin: (data: any) =>
     api.post('/admin/create-initial-admin', data).then(res => res.data),

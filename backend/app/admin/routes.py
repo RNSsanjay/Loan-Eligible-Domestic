@@ -324,6 +324,136 @@ async def get_admin_dashboard(
         "total_loan_amount": total_loan_amount
     }
 
+@router.get("/analytics/stats", response_model=dict)
+async def get_system_stats(
+    current_user: User = Depends(require_admin)
+):
+    """Get comprehensive system statistics"""
+    db = await get_database()
+    
+    # Get all managers created by this admin
+    managers = []
+    async for manager in db.users.find({
+        "role": UserRole.MANAGER,
+        "created_by": ObjectId(current_user.id)
+    }):
+        managers.append(manager)
+    
+    # Get all operators created by managers under this admin
+    all_operator_ids = []
+    for manager in managers:
+        async for operator in db.users.find({
+            "role": UserRole.OPERATOR,
+            "created_by": ObjectId(manager["_id"])
+        }):
+            all_operator_ids.append(ObjectId(operator["_id"]))
+    
+    # Count statistics
+    total_managers = len(managers)
+    total_operators = len(all_operator_ids)
+    
+    total_applications = await db.loan_applications.count_documents({
+        "operator_id": {"$in": all_operator_ids}
+    })
+    
+    pending_applications = await db.loan_applications.count_documents({
+        "operator_id": {"$in": all_operator_ids},
+        "status": LoanStatus.PENDING
+    })
+    
+    verification_pending = await db.loan_applications.count_documents({
+        "operator_id": {"$in": all_operator_ids},
+        "status": LoanStatus.SUBMITTED
+    })
+    
+    approved_applications = await db.loan_applications.count_documents({
+        "operator_id": {"$in": all_operator_ids},
+        "status": LoanStatus.APPROVED
+    })
+    
+    rejected_applications = await db.loan_applications.count_documents({
+        "operator_id": {"$in": all_operator_ids},
+        "status": LoanStatus.REJECTED
+    })
+    
+    # Calculate total loan value
+    total_loan_value = 0
+    async for app in db.loan_applications.find({
+        "operator_id": {"$in": all_operator_ids},
+        "status": LoanStatus.APPROVED
+    }):
+        total_loan_value += app.get("loan_amount", 0)
+    
+    return {
+        "total_managers": total_managers,
+        "total_operators": total_operators,
+        "total_applications": total_applications,
+        "total_loan_value": total_loan_value,
+        "pending_applications": pending_applications,
+        "approved_applications": approved_applications,
+        "rejected_applications": rejected_applications,
+        "verification_pending": verification_pending
+    }
+
+@router.get("/analytics/activity", response_model=List[dict])
+async def get_recent_activity(
+    current_user: User = Depends(require_admin),
+    limit: int = 20
+):
+    """Get recent system activity"""
+    db = await get_database()
+    
+    # Get all managers and operators under this admin
+    managers = []
+    async for manager in db.users.find({
+        "role": UserRole.MANAGER,
+        "created_by": ObjectId(current_user.id)
+    }):
+        managers.append(manager)
+    
+    all_user_ids = [ObjectId(current_user.id)]
+    for manager in managers:
+        all_user_ids.append(ObjectId(manager["_id"]))
+        async for operator in db.users.find({
+            "role": UserRole.OPERATOR,
+            "created_by": ObjectId(manager["_id"])
+        }):
+            all_user_ids.append(ObjectId(operator["_id"]))
+    
+    # Get recent loan applications
+    recent_activities = []
+    async for app in db.loan_applications.find({
+        "operator_id": {"$in": all_user_ids}
+    }).sort("created_at", -1).limit(limit):
+        operator = await db.users.find_one({"_id": app["operator_id"]})
+        activity = {
+            "id": str(app["_id"]),
+            "type": "loan_application",
+            "description": f"New loan application submitted for {app.get('animal_type', 'livestock')}",
+            "timestamp": app.get("created_at", datetime.now()).isoformat(),
+            "user_name": operator.get("name", "Unknown") if operator else "Unknown"
+        }
+        recent_activities.append(activity)
+    
+    # Get recent user creations
+    async for user in db.users.find({
+        "created_by": {"$in": all_user_ids}
+    }).sort("created_at", -1).limit(10):
+        creator = await db.users.find_one({"_id": user["created_by"]})
+        activity = {
+            "id": str(user["_id"]),
+            "type": "user_creation",
+            "description": f"New {user['role'].lower()} created: {user['name']}",
+            "timestamp": user.get("created_at", datetime.now()).isoformat(),
+            "user_name": creator.get("name", "System") if creator else "System"
+        }
+        recent_activities.append(activity)
+    
+    # Sort all activities by timestamp
+    recent_activities.sort(key=lambda x: x["timestamp"], reverse=True)
+    
+    return recent_activities[:limit]
+
 @router.post("/create-initial-admin", response_model=dict)
 async def create_initial_admin(admin_data: UserCreate):
     """Create the first admin user - this endpoint should be secured in production"""

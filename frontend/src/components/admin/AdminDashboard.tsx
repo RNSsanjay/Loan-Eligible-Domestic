@@ -1,6 +1,10 @@
 import React from 'react';
 import { Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { adminAPI } from '../../services/api';
+import { Loading } from '../common/Loading';
+import { ManagerManagement } from './ManagerManagement';
+import { SystemAnalytics } from './SystemAnalytics';
 
 export const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -87,8 +91,8 @@ export const AdminDashboard: React.FC = () => {
         <div className="flex-1 p-8">
           <Routes>
             <Route path="/" element={<AdminHome />} />
-            <Route path="/managers" element={<div>Manager Management - Coming Soon</div>} />
-            <Route path="/analytics" element={<div>System Analytics - Coming Soon</div>} />
+            <Route path="/managers" element={<ManagerManagement />} />
+            <Route path="/analytics" element={<SystemAnalytics />} />
             <Route path="/reports" element={<div>System Reports - Coming Soon</div>} />
           </Routes>
         </div>
@@ -98,6 +102,23 @@ export const AdminDashboard: React.FC = () => {
 };
 
 const AdminHome: React.FC = () => {
+  const [stats, setStats] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const data = await adminAPI.getSystemStats();
+        setStats(data);
+      } catch (error) {
+        console.error('Failed to load stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadStats();
+  }, []);
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Admin Dashboard</h2>
@@ -112,7 +133,7 @@ const AdminHome: React.FC = () => {
             </div>
             <div className="ml-4">
               <h3 className="text-sm font-medium text-gray-500">Total Managers</h3>
-              <p className="text-2xl font-semibold text-gray-900">-</p>
+              <p className="text-2xl font-semibold text-gray-900">{loading ? '-' : stats?.total_managers || 0}</p>
             </div>
           </div>
         </div>
@@ -126,7 +147,7 @@ const AdminHome: React.FC = () => {
             </div>
             <div className="ml-4">
               <h3 className="text-sm font-medium text-gray-500">Total Operators</h3>
-              <p className="text-2xl font-semibold text-gray-900">-</p>
+              <p className="text-2xl font-semibold text-gray-900">{loading ? '-' : stats?.total_operators || 0}</p>
             </div>
           </div>
         </div>
@@ -140,7 +161,7 @@ const AdminHome: React.FC = () => {
             </div>
             <div className="ml-4">
               <h3 className="text-sm font-medium text-gray-500">Total Applications</h3>
-              <p className="text-2xl font-semibold text-gray-900">-</p>
+              <p className="text-2xl font-semibold text-gray-900">{loading ? '-' : stats?.total_applications || 0}</p>
             </div>
           </div>
         </div>
@@ -154,7 +175,7 @@ const AdminHome: React.FC = () => {
             </div>
             <div className="ml-4">
               <h3 className="text-sm font-medium text-gray-500">Total Loan Value</h3>
-              <p className="text-2xl font-semibold text-gray-900">₹-</p>
+              <p className="text-2xl font-semibold text-gray-900">₹{loading ? '-' : (stats?.total_loan_value || 0).toLocaleString()}</p>
             </div>
           </div>
         </div>
