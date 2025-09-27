@@ -79,6 +79,7 @@ class User(UserBase):
         populate_by_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
+        allow_population_by_field_name = True
 
 # Family Member Model
 class FamilyMember(BaseModel):

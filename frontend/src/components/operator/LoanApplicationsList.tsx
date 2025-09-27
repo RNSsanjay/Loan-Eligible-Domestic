@@ -34,9 +34,12 @@ export const LoanApplicationsList: React.FC = () => {
       rejected: 'bg-red-100 text-red-800'
     };
 
+    // Handle undefined or null status
+    const safeStatus = status || 'pending';
+    
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClasses[status as keyof typeof statusClasses]}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClasses[safeStatus as keyof typeof statusClasses] || 'bg-gray-100 text-gray-800'}`}>
+        {safeStatus.charAt(0).toUpperCase() + safeStatus.slice(1)}
       </span>
     );
   };
@@ -79,12 +82,12 @@ export const LoanApplicationsList: React.FC = () => {
       ) : (
         <div className="space-y-4">
           {applications.map((app) => (
-            <Card key={app.id} className="hover:shadow-lg transition-shadow">
+            <Card key={app.id || app.application_number} className="hover:shadow-lg transition-shadow">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-lg font-semibold text-gray-900">
-                      Application #{app.application_number}
+                      Application #{app.application_number || 'N/A'}
                     </h3>
                     {getStatusBadge(app.status)}
                   </div>
@@ -96,11 +99,11 @@ export const LoanApplicationsList: React.FC = () => {
                     </div>
                     <div>
                       <span className="font-medium">Animal:</span><br />
-                      {(app.animal as any)?.[0]?.type} - {(app.animal as any)?.[0]?.breed || 'N/A'}
+                      {(app.animal as any)?.[0]?.type || 'N/A'} - {(app.animal as any)?.[0]?.breed || 'N/A'}
                     </div>
                     <div>
                       <span className="font-medium">Loan Amount:</span><br />
-                      ₹{app.loan_amount.toLocaleString()}
+                      ₹{(app.loan_amount || 0).toLocaleString()}
                     </div>
                     <div>
                       <span className="font-medium">Created:</span><br />
@@ -109,12 +112,12 @@ export const LoanApplicationsList: React.FC = () => {
                   </div>
                   
                   <div className="mt-3 text-sm text-gray-600">
-                    <span className="font-medium">Purpose:</span> {app.purpose}
+                    <span className="font-medium">Purpose:</span> {app.purpose || 'N/A'}
                   </div>
                 </div>
                 
                 <div className="ml-6 flex flex-col space-y-2">
-                  {app.status === 'pending' && (
+                  {(app.status === 'pending' || !app.status) && app.id && (
                     <Link to={`/operator/verify/${app.id}`}>
                       <Button size="sm">Verify Application</Button>
                     </Link>

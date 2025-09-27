@@ -12,6 +12,7 @@ from .auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
 from .database import get_database
+from .serializers import serialize_user_document
 
 router = APIRouter()
 security = HTTPBasic()
@@ -31,15 +32,7 @@ async def login(credentials: HTTPBasicCredentials = Depends(security)):
     
     user_obj = User(**user)
     
-    # Check if first login (no password set)
-    if user_obj.first_login and not user_obj.password_hash:
-        raise HTTPException(
-            status_code=status.HTTP_202_ACCEPTED,
-            detail="First login: password setup required",
-            headers={"X-First-Login": "true", "X-User-Email": user_obj.email}
-        )
-    
-    if not verify_password(credentials.password, user_obj.password_hash):
+    if not user_obj.password_hash or not verify_password(credentials.password, user_obj.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -90,9 +83,12 @@ async def set_password(email: str, password: str):
     
     return {"message": "Password set successfully"}
 
-@router.get("/me", response_model=User)
+@router.get("/me", response_model=dict)
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
-    return current_user
+    # Convert the User object to a dictionary with proper serialization
+    user_dict = current_user.model_dump()
+    user_dict['id'] = str(current_user.id)
+    return serialize_user_document(user_dict)
 
 @router.get("/check-first-login")
 async def check_first_login(email: str):

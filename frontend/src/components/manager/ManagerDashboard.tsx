@@ -2,6 +2,8 @@ import React from 'react';
 import { Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { OperatorManagement } from './OperatorManagement';
+import { ApplicationReview } from './ApplicationReview';
+import { ManagerReports } from './ManagerReports';
 
 export const ManagerDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -89,8 +91,8 @@ export const ManagerDashboard: React.FC = () => {
           <Routes>
             <Route path="/" element={<ManagerHome />} />
             <Route path="/operators" element={<OperatorManagement />} />
-            <Route path="/applications" element={<div>Application Review - Coming Soon</div>} />
-            <Route path="/reports" element={<div>Reports - Coming Soon</div>} />
+            <Route path="/applications" element={<ApplicationReview />} />
+            <Route path="/reports" element={<ManagerReports />} />
           </Routes>
         </div>
       </div>

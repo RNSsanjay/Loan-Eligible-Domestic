@@ -9,6 +9,7 @@ from ..common.models import (
 from ..common.auth import get_current_active_user, get_password_hash
 from ..common.database import get_database
 from ..common.file_utils import save_profile_image, delete_profile_image
+from ..common.serializers import serialize_user_document, serialize_document_list, serialize_objectid
 
 router = APIRouter()
 
@@ -25,6 +26,7 @@ async def create_manager(
     name: str = Form(...),
     email: str = Form(...),
     phone: str = Form(...),
+    password: str = Form(...),
     profile_image: Optional[UploadFile] = File(None),
     current_user: User = Depends(require_admin)
 ):
@@ -46,7 +48,8 @@ async def create_manager(
         "role": UserRole.MANAGER,
         "is_active": True,
         "created_by": ObjectId(current_user.id),
-        "first_login": True,
+        "password_hash": get_password_hash(password),
+        "first_login": False,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow()
     }
@@ -71,10 +74,10 @@ async def create_manager(
     return {
         "id": user_id,
         "email": email,
-        "message": "Manager created successfully. They need to set their password on first login."
+        "message": "Manager created successfully with password set."
     }
 
-@router.get("/managers", response_model=List[User])
+@router.get("/managers", response_model=List[dict])
 async def get_managers(
     current_user: User = Depends(require_admin)
 ):
@@ -85,11 +88,11 @@ async def get_managers(
         "role": UserRole.MANAGER,
         "created_by": ObjectId(current_user.id)
     }):
-        managers.append(User(**user))
+        managers.append(serialize_user_document(user))
     
     return managers
 
-@router.get("/managers/{manager_id}", response_model=User)
+@router.get("/managers/{manager_id}", response_model=dict)
 async def get_manager(
     manager_id: str,
     current_user: User = Depends(require_admin)
@@ -108,7 +111,7 @@ async def get_manager(
             detail="Manager not found"
         )
     
-    return User(**manager)
+    return serialize_user_document(manager)
 
 @router.put("/managers/{manager_id}", response_model=dict)
 async def update_manager(
@@ -165,7 +168,7 @@ async def delete_manager(
     
     return {"message": "Manager deleted successfully"}
 
-@router.get("/managers/{manager_id}/operators", response_model=List[User])
+@router.get("/managers/{manager_id}/operators", response_model=List[dict])
 async def get_manager_operators(
     manager_id: str,
     current_user: User = Depends(require_admin)
@@ -190,7 +193,7 @@ async def get_manager_operators(
         "role": UserRole.OPERATOR,
         "created_by": ObjectId(manager_id)
     }):
-        operators.append(User(**user))
+        operators.append(serialize_user_document(user))
     
     return operators
 

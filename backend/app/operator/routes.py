@@ -11,6 +11,7 @@ from ..common.models import (
 )
 from ..common.auth import get_current_active_user
 from ..common.database import get_database
+from ..common.serializers import serialize_objectid
 
 router = APIRouter()
 
@@ -42,17 +43,17 @@ async def create_applicant(
     
     return {"id": str(result.inserted_id), "message": "Applicant created successfully"}
 
-@router.get("/applicants", response_model=List[Applicant])
+@router.get("/applicants", response_model=List[dict])
 async def get_applicants(
     current_user: User = Depends(require_operator)
 ):
     db = await get_database()
     applicants = []
     async for applicant in db.applicants.find():
-        applicants.append(Applicant(**applicant))
+        applicants.append(serialize_objectid(applicant))
     return applicants
 
-@router.get("/applicants/{applicant_id}", response_model=Applicant)
+@router.get("/applicants/{applicant_id}", response_model=dict)
 async def get_applicant(
     applicant_id: str,
     current_user: User = Depends(require_operator)
@@ -66,7 +67,7 @@ async def get_applicant(
             detail="Applicant not found"
         )
     
-    return Applicant(**applicant)
+    return serialize_objectid(applicant)
 
 @router.post("/animals", response_model=dict)
 async def create_animal(
@@ -80,14 +81,14 @@ async def create_animal(
     
     return {"id": str(result.inserted_id), "message": "Animal details saved successfully"}
 
-@router.get("/animals", response_model=List[Animal])
+@router.get("/animals", response_model=List[dict])
 async def get_animals(
     current_user: User = Depends(require_operator)
 ):
     db = await get_database()
     animals = []
     async for animal in db.animals.find():
-        animals.append(Animal(**animal))
+        animals.append(serialize_objectid(animal))
     return animals
 
 @router.post("/loan-applications", response_model=dict)
@@ -119,6 +120,7 @@ async def create_loan_application(
     loan_dict = loan_app.model_dump()
     loan_dict["application_number"] = app_number
     loan_dict["operator_id"] = ObjectId(current_user.id)
+    loan_dict["status"] = "pending"  # Explicitly set default status
     
     result = await db.loan_applications.insert_one(loan_dict)
     
@@ -156,13 +158,7 @@ async def get_loan_applications(
     ]
     
     async for app in db.loan_applications.aggregate(pipeline):
-        app["_id"] = str(app["_id"])
-        app["applicant_id"] = str(app["applicant_id"])
-        app["animal_id"] = str(app["animal_id"])
-        app["operator_id"] = str(app["operator_id"])
-        if app["manager_id"]:
-            app["manager_id"] = str(app["manager_id"])
-        applications.append(app)
+        applications.append(serialize_objectid(app))
     
     return applications
 

@@ -20,6 +20,7 @@ interface CreateManagerData {
   name: string;
   email: string;
   phone: string;
+  password: string;
   profileImage?: File | null;
 }
 
@@ -35,6 +36,7 @@ export const ManagerManagement: React.FC = () => {
     name: '',
     email: '',
     phone: '',
+    password: '',
     profileImage: null
   });
 
@@ -62,8 +64,8 @@ export const ManagerManagement: React.FC = () => {
 
     try {
       await adminAPI.createManager(createData);
-      setSuccess('Manager created successfully! They will receive login instructions.');
-      setCreateData({ name: '', email: '', phone: '', profileImage: null });
+      setSuccess('Manager created successfully with password set!');
+      setCreateData({ name: '', email: '', phone: '', password: '', profileImage: null });
       setShowCreateForm(false);
       loadManagers();
     } catch (err: any) {
@@ -167,6 +169,16 @@ export const ManagerManagement: React.FC = () => {
                   required
                   placeholder="Enter manager's phone number"
                 />
+                
+                <Input
+                  label="Password"
+                  type="password"
+                  value={createData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  required
+                  placeholder="Enter a secure password"
+                  minLength={6}
+                />
 
                 <ImageUpload
                   label="Profile Picture"
@@ -180,7 +192,7 @@ export const ManagerManagement: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setShowCreateForm(false);
-                    setCreateData({ name: '', email: '', phone: '', profileImage: null });
+                    setCreateData({ name: '', email: '', phone: '', password: '', profileImage: null });
                     setError('');
                   }}
                   variant="secondary"

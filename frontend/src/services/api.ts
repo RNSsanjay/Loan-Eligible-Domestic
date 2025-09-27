@@ -75,6 +75,7 @@ export const managerAPI = {
     formData.append('name', data.name);
     formData.append('email', data.email);
     formData.append('phone', data.phone);
+    formData.append('password', data.password);
     if (data.profileImage) {
       formData.append('profile_image', data.profileImage);
     }
@@ -110,6 +111,13 @@ export const managerAPI = {
   // Dashboard
   getDashboardStats: () =>
     api.get('/manager/dashboard/stats').then(res => res.data),
+    
+  // Reports
+  getOperatorPerformanceReport: () =>
+    api.get('/manager/reports/operator-performance').then(res => res.data),
+    
+  getMonthlyAnalytics: (months: number = 6) =>
+    api.get('/manager/reports/monthly-analytics', { params: { months } }).then(res => res.data),
 };
 
 // Admin API       
@@ -120,6 +128,7 @@ export const adminAPI = {
     formData.append('name', data.name);
     formData.append('email', data.email);
     formData.append('phone', data.phone);
+    formData.append('password', data.password);
     if (data.profileImage) {
       formData.append('profile_image', data.profileImage);
     }

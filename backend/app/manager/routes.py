@@ -6,9 +6,10 @@ from datetime import datetime
 from ..common.models import (
     User, UserCreate, UserRole, LoanApplication, LoanStatus, UserUpdate
 )
-from ..common.auth import get_current_active_user
+from ..common.auth import get_current_active_user, get_password_hash
 from ..common.database import get_database
 from ..common.file_utils import save_profile_image, delete_profile_image
+from ..common.serializers import serialize_user_document, serialize_document_list, serialize_objectid
 
 router = APIRouter()
 
@@ -25,6 +26,7 @@ async def create_operator(
     name: str = Form(...),
     email: str = Form(...),
     phone: str = Form(...),
+    password: str = Form(...),
     profile_image: Optional[UploadFile] = File(None),
     current_user: User = Depends(require_manager)
 ):
@@ -46,7 +48,8 @@ async def create_operator(
         "role": UserRole.OPERATOR,
         "is_active": True,
         "created_by": ObjectId(current_user.id),
-        "first_login": True,
+        "password_hash": get_password_hash(password),
+        "first_login": False,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow()
     }
@@ -71,10 +74,10 @@ async def create_operator(
     return {
         "id": user_id,
         "email": email,
-        "message": "Operator created successfully. They need to set their password on first login."
+        "message": "Operator created successfully with password set."
     }
 
-@router.get("/operators", response_model=List[User])
+@router.get("/operators", response_model=List[dict])
 async def get_operators(
     current_user: User = Depends(require_manager)
 ):
@@ -85,11 +88,11 @@ async def get_operators(
         "role": UserRole.OPERATOR,
         "created_by": ObjectId(current_user.id)
     }):
-        operators.append(User(**user))
+        operators.append(serialize_user_document(user))
     
     return operators
 
-@router.get("/operators/{operator_id}", response_model=User)
+@router.get("/operators/{operator_id}", response_model=dict)
 async def get_operator(
     operator_id: str,
     current_user: User = Depends(require_manager)
@@ -108,7 +111,7 @@ async def get_operator(
             detail="Operator not found"
         )
     
-    return User(**operator)
+    return serialize_user_document(operator)
 
 @router.put("/operators/{operator_id}", response_model=dict)
 async def update_operator(
@@ -212,13 +215,7 @@ async def get_loan_applications(
     ]
     
     async for app in db.loan_applications.aggregate(pipeline):
-        app["_id"] = str(app["_id"])
-        app["applicant_id"] = str(app["applicant_id"])
-        app["animal_id"] = str(app["animal_id"])
-        app["operator_id"] = str(app["operator_id"])
-        if app.get("manager_id"):
-            app["manager_id"] = str(app["manager_id"])
-        applications.append(app)
+        applications.append(serialize_objectid(app))
     
     return applications
 
@@ -371,3 +368,125 @@ async def get_dashboard_stats(
         "approved_applications": approved_apps,
         "rejected_applications": rejected_apps
     }
+
+@router.get("/reports/operator-performance", response_model=List[dict])
+async def get_operator_performance_report(
+    current_user: User = Depends(require_manager)
+):
+    db = await get_database()
+    
+    # Get all operators created by this manager
+    operators = []
+    async for operator in db.users.find({
+        "role": UserRole.OPERATOR,
+        "created_by": ObjectId(current_user.id)
+    }):
+        operator_dict = serialize_user_document(operator)
+        
+        # Get application statistics for this operator
+        total_apps = await db.loan_applications.count_documents({"operator_id": ObjectId(operator["_id"])})
+        approved_apps = await db.loan_applications.count_documents({
+            "operator_id": ObjectId(operator["_id"]),
+            "status": LoanStatus.APPROVED
+        })
+        rejected_apps = await db.loan_applications.count_documents({
+            "operator_id": ObjectId(operator["_id"]),
+            "status": LoanStatus.REJECTED
+        })
+        pending_apps = await db.loan_applications.count_documents({
+            "operator_id": ObjectId(operator["_id"]),
+            "status": {"$in": [LoanStatus.PENDING, LoanStatus.VERIFIED]}
+        })
+        
+        approval_rate = round((approved_apps / total_apps) * 100) if total_apps > 0 else 0
+        
+        operator_performance = {
+            "operator_name": operator["name"],
+            "operator_email": operator["email"],
+            "total_applications": total_apps,
+            "approved_applications": approved_apps,
+            "rejected_applications": rejected_apps,
+            "pending_applications": pending_apps,
+            "approval_rate": approval_rate
+        }
+        operators.append(operator_performance)
+    
+    return operators
+
+@router.get("/reports/monthly-analytics", response_model=List[dict])
+async def get_monthly_analytics(
+    months: int = 6,
+    current_user: User = Depends(require_manager)
+):
+    db = await get_database()
+    
+    # Get all operator IDs for this manager
+    operator_ids = []
+    async for operator in db.users.find({
+        "role": UserRole.OPERATOR,
+        "created_by": ObjectId(current_user.id)
+    }):
+        operator_ids.append(operator["_id"])
+    
+    if not operator_ids:
+        return []
+    
+    # Build aggregation pipeline for monthly data
+    from datetime import datetime, timedelta
+    
+    # Get data for last N months
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=months * 30)
+    
+    pipeline = [
+        {
+            "$match": {
+                "operator_id": {"$in": operator_ids},
+                "created_at": {"$gte": start_date, "$lte": end_date}
+            }
+        },
+        {
+            "$group": {
+                "_id": {
+                    "year": {"$year": "$created_at"},
+                    "month": {"$month": "$created_at"}
+                },
+                "total_amount": {"$sum": "$loan_amount"},
+                "applications_count": {"$sum": 1},
+                "approved_amount": {
+                    "$sum": {
+                        "$cond": [
+                            {"$eq": ["$status", "approved"]},
+                            "$loan_amount",
+                            0
+                        ]
+                    }
+                },
+                "approved_count": {
+                    "$sum": {
+                        "$cond": [
+                            {"$eq": ["$status", "approved"]},
+                            1,
+                            0
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "$sort": {"_id.year": 1, "_id.month": 1}
+        }
+    ]
+    
+    monthly_data = []
+    async for doc in db.loan_applications.aggregate(pipeline):
+        month_name = datetime(doc["_id"]["year"], doc["_id"]["month"], 1).strftime("%b %Y")
+        monthly_data.append({
+            "month": month_name,
+            "total_amount": doc["total_amount"],
+            "applications_count": doc["applications_count"],
+            "approved_amount": doc["approved_amount"],
+            "approved_count": doc["approved_count"]
+        })
+    
+    return monthly_data
