@@ -73,11 +73,6 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       <Card className="w-full max-w-md animate-fadeInUp">
         <div className="text-center mb-6">
           <div className="flex items-center justify-center mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center animate-glow">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-              </svg>
-            </div>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Domestic Loan Management</h1>
           <p className="text-gray-600">
@@ -86,8 +81,8 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         </div>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-red-800 text-sm">{error}</p>
+          <div className="mb-4 p-4 bg-green-50 border border-green-300 rounded-md">
+            <p className="text-green-700 text-sm">{error}</p>
           </div>
         )}
 
@@ -124,8 +119,8 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           </form>
         ) : (
           <form onSubmit={handleSetPassword} className="space-y-4">
-            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-blue-800 text-sm">
+            <div className="mb-4 p-4 bg-green-50 border border-green-300 rounded-md">
+              <p className="text-green-700 text-sm">
                 This is your first login. Please set a secure password.
               </p>
             </div>

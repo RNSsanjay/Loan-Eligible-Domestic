@@ -28,10 +28,10 @@ export const LoanApplicationsList: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     const statusClasses = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      verified: 'bg-blue-100 text-blue-800',
-      approved: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800'
+      pending: 'bg-green-100 text-green-800',
+      verified: 'bg-green-200 text-green-900',
+      approved: 'bg-green-300 text-green-900',
+      rejected: 'bg-gray-100 text-gray-800'
     };
 
     // Handle undefined or null status
@@ -61,8 +61,8 @@ export const LoanApplicationsList: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-red-800 text-sm">{error}</p>
+        <div className="mb-6 p-4 bg-green-50 border border-green-300 rounded-md">
+          <p className="text-green-700 text-sm">{error}</p>
         </div>
       )}
 
@@ -123,7 +123,7 @@ export const LoanApplicationsList: React.FC = () => {
                     </Link>
                   )}
                   {app.status === 'verified' && (
-                    <span className="text-sm text-blue-600 font-medium">
+                    <span className="text-sm text-green-600 font-medium">
                       Awaiting Manager Approval
                     </span>
                   )}
@@ -133,7 +133,7 @@ export const LoanApplicationsList: React.FC = () => {
                     </span>
                   )}
                   {app.status === 'rejected' && (
-                    <span className="text-sm text-red-600 font-medium">
+                    <span className="text-sm text-gray-600 font-medium">
                       ✗ Application Rejected
                     </span>
                   )}

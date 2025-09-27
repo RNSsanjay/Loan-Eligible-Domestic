@@ -35,6 +35,12 @@ export const authAPI = {
     
   getProfile: () =>
     api.get('/auth/me').then(res => res.data),
+    
+  updateProfile: (data: any) =>
+    api.put('/auth/profile', data).then(res => res.data),
+    
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    api.put('/auth/change-password', data).then(res => res.data),
 };
 
 // Operator API
@@ -70,21 +76,8 @@ export const operatorAPI = {
 // Manager API
 export const managerAPI = {
   // Operators
-  createOperator: (data: any) => {
-    const formData = new FormData();
-    formData.append('name', data.name);
-    formData.append('email', data.email);
-    formData.append('phone', data.phone);
-    formData.append('password', data.password);
-    if (data.profileImage) {
-      formData.append('profile_image', data.profileImage);
-    }
-    return api.post('/manager/operators', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }).then(res => res.data);
-  },
+  createOperator: (data: any) =>
+    api.post('/manager/operators', data).then(res => res.data),
     
   getOperators: () =>
     api.get('/manager/operators').then(res => res.data),
@@ -123,21 +116,8 @@ export const managerAPI = {
 // Admin API       
 export const adminAPI = {
   // Managers
-  createManager: (data: any) => {
-    const formData = new FormData();
-    formData.append('name', data.name);
-    formData.append('email', data.email);
-    formData.append('phone', data.phone);
-    formData.append('password', data.password);
-    if (data.profileImage) {
-      formData.append('profile_image', data.profileImage);
-    }
-    return api.post('/admin/managers', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }).then(res => res.data);
-  },
+  createManager: (data: any) =>
+    api.post('/admin/managers', data).then(res => res.data),
     
   getManagers: () =>
     api.get('/admin/managers').then(res => res.data),

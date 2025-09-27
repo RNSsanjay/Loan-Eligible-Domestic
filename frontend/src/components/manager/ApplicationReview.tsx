@@ -128,10 +128,10 @@ export const ApplicationReview: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     const badges = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      verified: 'bg-blue-100 text-blue-800',
-      approved: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800'
+      pending: 'bg-green-100 text-green-800',
+      verified: 'bg-green-200 text-green-900',
+      approved: 'bg-green-300 text-green-900',
+      rejected: 'bg-gray-100 text-gray-800'
     };
     return badges[status as keyof typeof badges] || 'bg-gray-100 text-gray-800';
   };
@@ -171,7 +171,7 @@ export const ApplicationReview: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+        <div className="mb-4 p-4 bg-green-50 border border-green-300 text-green-700 rounded">
           {error}
         </div>
       )}
@@ -226,7 +226,7 @@ export const ApplicationReview: React.FC = () => {
                   <h4 className="font-medium text-gray-900 mb-2">Applicant</h4>
                   {application.applicant && application.applicant[0] ? (
                     <div className="text-sm text-gray-600">
-                      <p className="font-medium">{application.applicant[0].name}</p>
+                      <p className="font-medium truncate max-w-[200px]" title={application.applicant[0].name}>{application.applicant[0].name}</p>
                       <p>{application.applicant[0].phone}</p>
                       <p>{formatCurrency(application.applicant[0].annual_income)} /year</p>
                     </div>
@@ -254,8 +254,8 @@ export const ApplicationReview: React.FC = () => {
                   <h4 className="font-medium text-gray-900 mb-2">Operator</h4>
                   {application.operator && application.operator[0] ? (
                     <div className="text-sm text-gray-600">
-                      <p className="font-medium">{application.operator[0].name}</p>
-                      <p>{application.operator[0].email}</p>
+                      <p className="font-medium truncate max-w-[180px]" title={application.operator[0].name}>{application.operator[0].name}</p>
+                      <p className="text-sm text-gray-600 truncate max-w-[180px]" title={application.operator[0].email}>{application.operator[0].email}</p>
                     </div>
                   ) : (
                     <p className="text-sm text-gray-500">No operator details</p>
@@ -270,7 +270,7 @@ export const ApplicationReview: React.FC = () => {
 
               {/* Verification Status */}
               {application.verification_checklist && (
-                <div className="mb-4 bg-blue-50 p-3 rounded">
+                <div className="mb-4 bg-green-50 p-3 rounded">
                   <h4 className="font-medium text-gray-900 mb-2">Verification Status</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                     {application.verification_checklist.items?.map((item, index) => (
@@ -280,11 +280,11 @@ export const ApplicationReview: React.FC = () => {
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         ) : (
-                          <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                           </svg>
                         )}
-                        <span className={item.status ? 'text-green-700' : 'text-red-700'}>
+                        <span className={item.status ? 'text-green-700' : 'text-gray-700'}>
                           {item.item}
                         </span>
                       </div>

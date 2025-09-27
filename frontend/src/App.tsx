@@ -7,6 +7,7 @@ import { Loading } from './components/common/Loading';
 import { Navbar } from './components/common/Navbar';
 import { AnimatedBackground } from './components/common/AnimatedBackground';
 import { ProfilePage } from './components/common/ProfilePage';
+import { EditProfilePage } from './pages/EditProfilePage';
 import { HelpPage } from './components/common/HelpPage';
 import { OperatorDashboard } from '../src/components/operator/OperatorDashboard';
 import { ManagerDashboard } from '../src/components/manager/ManagerDashboard';
@@ -38,6 +39,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/login" element={!user ? <Login onLoginSuccess={() => {}} /> : <Navigate to="/" replace />} />
       
       <Route path="/profile" element={user ? <ProfilePage /> : <Navigate to="/login" replace />} />
+      <Route path="/edit-profile" element={user ? <EditProfilePage /> : <Navigate to="/login" replace />} />
       <Route path="/help" element={user ? <HelpPage /> : <Navigate to="/login" replace />} />
       
       <Route 

@@ -22,8 +22,8 @@ export const ProfilePage: React.FC = () => {
                   {user.name.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 2)}
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900">{user.name}</h3>
-                  <p className="text-gray-600">{user.email}</p>
+                  <h3 className="text-xl font-semibold text-gray-900 truncate max-w-[250px]" title={user.name}>{user.name}</h3>
+                  <p className="text-gray-600 truncate max-w-[250px]" title={user.email}>{user.email}</p>
                   <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 capitalize">
                     {user.role}
                   </span>

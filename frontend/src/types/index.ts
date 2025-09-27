@@ -6,6 +6,7 @@ export interface User {
   role: 'admin' | 'manager' | 'operator';
   is_active: boolean;
   profile_image?: string;
+  profile_image_base64?: string;
   created_at: string;
   updated_at: string;
   first_login: boolean;

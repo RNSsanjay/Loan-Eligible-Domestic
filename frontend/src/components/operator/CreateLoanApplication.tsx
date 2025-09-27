@@ -102,18 +102,18 @@ export const CreateLoanApplication: React.FC = () => {
       {!submittedApplication && (
         <>
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-red-800 text-sm">{error}</p>
+            <div className="mb-6 p-4 bg-green-50 border border-green-300 rounded-md">
+              <p className="text-green-700 text-sm">{error}</p>
             </div>
           )}
 
           {applicants.length === 0 && (
-            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-              <p className="text-yellow-800 text-sm">
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md">
+              <p className="text-green-700 text-sm">
                 No applicants found. Please{' '}
                 <button
                   onClick={() => navigate('/operator/create-applicant')}
-                  className="underline hover:text-yellow-900"
+                  className="underline hover:text-green-800"
                 >
                   create an applicant
                 </button>{' '}
@@ -123,12 +123,12 @@ export const CreateLoanApplication: React.FC = () => {
           )}
 
           {animals.length === 0 && (
-            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-              <p className="text-yellow-800 text-sm">
+            <div className="mb-6 p-4 bg-green-100 border border-green-300 rounded-md">
+              <p className="text-green-800 text-sm">
                 No animal records found. Please{' '}
                 <button
                   onClick={() => navigate('/operator/create-animal')}
-                  className="underline hover:text-yellow-900"
+                  className="underline hover:text-green-900"
                 >
                   add animal details
                 </button>{' '}
@@ -280,21 +280,21 @@ export const CreateLoanApplication: React.FC = () => {
                       ₹{loanApplication.loan_amount.toLocaleString()}
                     </p>
                   </div>
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <h4 className="text-sm font-medium text-blue-700">Repayment Period</h4>
-                    <p className="text-2xl font-bold text-blue-900">
+                  <div className="p-4 bg-green-50 rounded-lg">
+                    <h4 className="text-sm font-medium text-green-700">Repayment Period</h4>
+                    <p className="text-2xl font-bold text-green-900">
                       {loanApplication.repayment_period} months
                     </p>
                   </div>
-                  <div className="p-4 bg-yellow-50 rounded-lg">
-                    <h4 className="text-sm font-medium text-yellow-700">Estimated EMI</h4>
-                    <p className="text-2xl font-bold text-yellow-900">
+                  <div className="p-4 bg-green-100 rounded-lg">
+                    <h4 className="text-sm font-medium text-green-800">Estimated EMI</h4>
+                    <p className="text-2xl font-bold text-green-900">
                       ₹{Math.ceil(loanApplication.loan_amount / loanApplication.repayment_period).toLocaleString()}
                     </p>
                   </div>
-                  <div className="p-4 bg-purple-50 rounded-lg">
-                    <h4 className="text-sm font-medium text-purple-700">Status</h4>
-                    <p className="text-lg font-semibold text-purple-900">Pending Verification</p>
+                  <div className="p-4 bg-green-200 rounded-lg">
+                    <h4 className="text-sm font-medium text-green-800">Status</h4>
+                    <p className="text-lg font-semibold text-green-900">Pending Verification</p>
                   </div>
                 </div>
               </Card>
@@ -346,7 +346,7 @@ export const CreateLoanApplication: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Status</p>
-                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                       Submitted
                     </span>
                   </div>

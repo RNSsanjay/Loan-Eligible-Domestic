@@ -3,6 +3,7 @@ import { managerAPI } from '../../services/api';
 import { Card } from '../common/Card';
 import { Button } from '../common/Button';
 import { Loading } from '../common/Loading';
+import { ChartIcon, UsersIcon, TrendingUpIcon } from '../common/Icons';
 
 interface DashboardStats {
   operators_count: number;
@@ -166,7 +167,7 @@ export const ManagerReports: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+        <div className="mb-4 p-4 bg-green-50 border border-green-300 text-green-700 rounded">
           {error}
         </div>
       )}
@@ -175,23 +176,26 @@ export const ManagerReports: React.FC = () => {
       <div className="border-b border-gray-200 mb-6">
         <nav className="-mb-px flex space-x-8">
           {[
-            { id: 'overview', label: 'Overview', icon: '📊' },
-            { id: 'operators', label: 'Operator Performance', icon: '👥' },
-            { id: 'loans', label: 'Loan Analytics', icon: '💰' }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <span className="mr-2">{tab.icon}</span>
-              {tab.label}
-            </button>
-          ))}
+            { id: 'overview', label: 'Overview', icon: ChartIcon },
+            { id: 'operators', label: 'Operator Performance', icon: UsersIcon },
+            { id: 'loans', label: 'Loan Analytics', icon: TrendingUpIcon }
+          ].map((tab) => {
+            const IconComponent = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <IconComponent className="w-4 h-4 inline-block mr-2" />
+                {tab.label}
+              </button>
+            );
+          })}
         </nav>
       </div>
 
@@ -203,8 +207,8 @@ export const ManagerReports: React.FC = () => {
             <Card className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-blue-100 rounded-md flex items-center justify-center">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-8 h-8 bg-green-100 rounded-md flex items-center justify-center">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                   </div>
@@ -219,8 +223,8 @@ export const ManagerReports: React.FC = () => {
             <Card className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-purple-100 rounded-md flex items-center justify-center">
-                    <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-8 h-8 bg-green-50 rounded-md flex items-center justify-center">
+                    <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </div>
@@ -254,8 +258,8 @@ export const ManagerReports: React.FC = () => {
             <Card className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-yellow-100 rounded-md flex items-center justify-center">
-                    <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-8 h-8 bg-green-200 rounded-md flex items-center justify-center">
+                    <svg className="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
@@ -275,9 +279,9 @@ export const ManagerReports: React.FC = () => {
             <div className="space-y-4">
               {[
                 { label: 'Approved', value: stats.approved_applications, color: 'bg-green-500' },
-                { label: 'Verified (Pending Review)', value: stats.verified_applications, color: 'bg-blue-500' },
-                { label: 'Pending Verification', value: stats.pending_applications, color: 'bg-yellow-500' },
-                { label: 'Rejected', value: stats.rejected_applications, color: 'bg-red-500' }
+                { label: 'Verified (Pending Review)', value: stats.verified_applications, color: 'bg-green-500' },
+                { label: 'Pending Verification', value: stats.pending_applications, color: 'bg-green-300' },
+                { label: 'Rejected', value: stats.rejected_applications, color: 'bg-gray-500' }
               ].map((item) => (
                 <div key={item.label} className="flex items-center">
                   <div className="flex items-center flex-1">
@@ -354,12 +358,12 @@ export const ManagerReports: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                           {operator.rejected_applications}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           {operator.pending_applications}
                         </span>
                       </td>
@@ -443,7 +447,7 @@ export const ManagerReports: React.FC = () => {
                           <div className="flex-1">
                             <div className="w-full bg-gray-200 rounded-full h-2 mr-3">
                               <div
-                                className="bg-blue-500 h-2 rounded-full"
+                                className="bg-green-500 h-2 rounded-full"
                                 style={{ 
                                   width: `${calculatePercentage(report.approved_count, report.applications_count)}%` 
                                 }}

@@ -4,7 +4,7 @@ import { Card } from '../common/Card';
 import { Input } from '../common/Input';
 import { Button } from '../common/Button';
 import { Loading } from '../common/Loading';
-import { ImageUpload } from '../common/ImageUpload';
+import { EnhancedImageUpload } from '../common/EnhancedImageUpload';
 
 interface Operator {
   id: string;
@@ -21,7 +21,7 @@ interface CreateOperatorData {
   email: string;
   phone: string;
   password: string;
-  profileImage?: File | null;
+  profile_image_base64?: string;
 }
 
 export const OperatorManagement: React.FC = () => {
@@ -37,7 +37,7 @@ export const OperatorManagement: React.FC = () => {
     email: '',
     phone: '',
     password: '',
-    profileImage: null
+    profile_image_base64: undefined
   });
 
   useEffect(() => {
@@ -65,7 +65,7 @@ export const OperatorManagement: React.FC = () => {
     try {
       await managerAPI.createOperator(createData);
       setSuccess('Operator created successfully with password set!');
-      setCreateData({ name: '', email: '', phone: '', password: '', profileImage: null });
+      setCreateData({ name: '', email: '', phone: '', password: '', profile_image_base64: undefined });
       setShowCreateForm(false);
       loadOperators();
     } catch (err: any) {
@@ -79,8 +79,8 @@ export const OperatorManagement: React.FC = () => {
     setCreateData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleProfileImageChange = (file: File | null, preview: string | null) => {
-    setCreateData(prev => ({ ...prev, profileImage: file }));
+  const handleProfileImageChange = (base64: string) => {
+    setCreateData(prev => ({ ...prev, profile_image_base64: base64 }));
   };
 
   const handleDeactivateOperator = async (operatorId: string) => {
@@ -89,11 +89,25 @@ export const OperatorManagement: React.FC = () => {
     }
 
     try {
-      await managerAPI.deleteOperator(operatorId);
+      await managerAPI.updateOperator(operatorId, { is_active: false });
       setSuccess('Operator deactivated successfully');
       loadOperators();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to deactivate operator');
+    }
+  };
+
+  const handleDeleteOperator = async (operatorId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this operator? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await managerAPI.deleteOperator(operatorId);
+      setSuccess('Operator deleted successfully');
+      loadOperators();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to delete operator');
     }
   };
 
@@ -114,7 +128,7 @@ export const OperatorManagement: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+        <div className="mb-4 p-4 bg-green-50 border border-green-300 text-green-700 rounded">
           {error}
         </div>
       )}
@@ -127,7 +141,7 @@ export const OperatorManagement: React.FC = () => {
 
       {/* Create Operator Modal */}
       {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 mt-10">
           <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Operator</h3>
             
@@ -170,9 +184,10 @@ export const OperatorManagement: React.FC = () => {
                   minLength={6}
                 />
 
-                <ImageUpload
+                <EnhancedImageUpload
                   label="Profile Picture"
                   onChange={handleProfileImageChange}
+                  value={createData.profile_image_base64}
                   className="mt-4"
                 />
               </div>
@@ -182,7 +197,7 @@ export const OperatorManagement: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setShowCreateForm(false);
-                    setCreateData({ name: '', email: '', phone: '', password: '', profileImage: null });
+                    setCreateData({ name: '', email: '', phone: '', password: '', profile_image_base64: undefined });
                     setError('');
                   }}
                   variant="secondary"
@@ -224,23 +239,29 @@ export const OperatorManagement: React.FC = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900">{operator.name}</h3>
-                    <p className="text-sm text-gray-600">{operator.email}</p>
-                    <p className="text-sm text-gray-500">{operator.phone}</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-gray-900 truncate" title={operator.name}>
+                      {operator.name}
+                    </h3>
+                    <p className="text-sm text-gray-600 truncate" title={operator.email}>
+                      {operator.email}
+                    </p>
+                    <p className="text-sm text-gray-500 truncate" title={operator.phone}>
+                      {operator.phone}
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center">
-                      <div className={`w-3 h-3 rounded-full mr-2 ${operator.is_active ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                      <div className={`w-3 h-3 rounded-full mr-2 ${operator.is_active ? 'bg-green-400' : 'bg-gray-400'}`}></div>
                       <span className="text-sm text-gray-600">
                         {operator.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
                     {operator.first_login && (
-                      <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
+                      <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
                         First Login Pending
                       </span>
                     )}
@@ -256,10 +277,16 @@ export const OperatorManagement: React.FC = () => {
                 <div className="flex space-x-2">
                   <Button
                     onClick={() => handleDeactivateOperator(operator.id)}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm"
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm"
                     disabled={!operator.is_active}
                   >
                     {operator.is_active ? 'Deactivate' : 'Deactivated'}
+                  </Button>
+                  <Button
+                    onClick={() => handleDeleteOperator(operator.id)}
+                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white text-sm"
+                  >
+                    Delete
                   </Button>
                 </div>
               </Card>

@@ -1,5 +1,33 @@
 @import "tailwindcss";
 
+/* Text truncation utilities */
+.text-truncate-1 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.text-truncate-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  line-height: 1.4;
+  max-height: 2.8em;
+}
+
+.text-truncate-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  line-height: 1.4;
+  max-height: 4.2em;
+}
+
 /* Custom animations and background effects */
 @keyframes float-0 {
   0%, 100% { transform: translateY(0px) rotate(0deg); }
@@ -123,7 +151,19 @@
 .animate-fadeInUp { animation: fadeInUp 0.3s ease-out forwards; }
 .animate-slideInLeft { animation: slideInLeft 0.6s ease-out forwards; }
 .animate-slideInRight { animation: slideInRight 0.6s ease-out forwards; }
+.animate-slideInDown { animation: slideInDown 0.3s ease-out forwards; }
 .animate-glow { animation: glow 2s ease-in-out infinite; }
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 /* Grid pattern background */
 .bg-grid-pattern {

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr, GetJsonSchemaHandler
+from pydantic import BaseModel, Field, EmailStr, GetJsonSchemaHandler, ConfigDict
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema
 from typing import Optional, List, Any
@@ -56,7 +56,8 @@ class UserBase(BaseModel):
     phone: str
     role: UserRole
     is_active: bool = True
-    profile_image: Optional[str] = None
+    profile_image: Optional[str] = None  # File path (legacy)
+    profile_image_base64: Optional[str] = None  # Base64 encoded image
 
 class UserCreate(UserBase):
     password: Optional[str] = None
@@ -65,6 +66,8 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
+    profile_image: Optional[str] = None  # File path (legacy)
+    profile_image_base64: Optional[str] = None  # Base64 encoded image
     is_active: Optional[bool] = None
 
 class User(UserBase):
@@ -75,11 +78,11 @@ class User(UserBase):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     first_login: bool = True
 
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
-        allow_population_by_field_name = True
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
 
 # Family Member Model
 class FamilyMember(BaseModel):
@@ -110,10 +113,11 @@ class Applicant(ApplicantBase):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
 
 # Animal Models
 class AnimalBase(BaseModel):
@@ -132,10 +136,11 @@ class Animal(AnimalBase):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
 
 # Verification Checklist
 class VerificationItem(BaseModel):
@@ -170,10 +175,11 @@ class LoanApplication(LoanApplicationBase):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
 
 # Token Models
 class Token(BaseModel):
