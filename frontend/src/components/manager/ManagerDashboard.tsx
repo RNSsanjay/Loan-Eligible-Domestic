@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { OperatorManagement } from './OperatorManagement';
+import { FarmStoryAnimation } from '../common/FarmStoryAnimation';
 import { ApplicationReview } from './ApplicationReview';
 import { ManagerReports } from './ManagerReports';
 
@@ -16,11 +17,15 @@ export const ManagerDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-
       <div className="flex relative z-10">
-        {/* Sidebar */}
-        <div className="w-64 bg-white/80 backdrop-blur-lg shadow-sm h-screen">
-          <nav className="mt-8">
+        {/* Fixed Sidebar */}
+        <div className="fixed left-0 top-8 w-64 bg-white/90 backdrop-blur-lg shadow-lg h-screen overflow-y-auto z-50">
+          <div className="p-4 border-b border-gray-200">
+            {/* <h1 className="text-xl font-bold text-gray-900">Manager Portal</h1>
+            <p className="text-sm text-gray-600">Loan Management System</p> */}
+          </div>
+          
+          <nav className="mt-6">
             <div className="px-4">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
                 Management
@@ -61,10 +66,15 @@ export const ManagerDashboard: React.FC = () => {
               </ul>
             </div>
           </nav>
+          
+          {/* Farm Story Animation at the bottom */}
+          <div className="absolute bottom-4 left-0 right-0">
+            <FarmStoryAnimation />
+          </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 p-8">
+        {/* Main Content - with left margin to account for fixed sidebar */}
+        <div className="flex-1 ml-64 p-8">
           <Routes>
             <Route path="/" element={<ManagerHome />} />
             <Route path="/operators" element={<OperatorManagement />} />

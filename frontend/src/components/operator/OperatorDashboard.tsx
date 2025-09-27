@@ -6,6 +6,7 @@ import { CreateAnimal } from '../operator/CreateAnimal';
 import { CreateLoanApplication } from '../operator/CreateLoanApplication';
 import { LoanApplicationsList } from '../operator/LoanApplicationsList';
 import { VerificationStepper } from '../operator/verify/VerificationStepper';
+import { FarmStoryAnimation } from '../common/FarmStoryAnimation';
 
 export const OperatorDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -19,9 +20,14 @@ export const OperatorDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="flex relative z-10">
-        {/* Sidebar */}
-        <div className="w-64 bg-white/80 backdrop-blur-lg shadow-sm h-screen">
-          <nav className="mt-8">
+        {/* Fixed Sidebar */}
+        <div className="fixed left-0 top-6 w-64 bg-white/90 backdrop-blur-lg shadow-lg h-screen overflow-y-auto z-50">
+          <div className="p-4 border-b border-gray-200">
+            {/* <h1 className="text-xl font-bold text-gray-900">Operator Portal</h1>
+            <p className="text-sm text-gray-600">Loan Management System</p> */}
+          </div>
+          
+          <nav className="mt-6">
             <div className="px-4">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
                 Loan Management
@@ -70,10 +76,15 @@ export const OperatorDashboard: React.FC = () => {
               </ul>
             </div>
           </nav>
+          
+          {/* Farm Story Animation at the bottom */}
+          <div className="absolute bottom-4 left-0 right-0">
+            <FarmStoryAnimation />
+          </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 p-8">
+        {/* Main Content - with left margin to account for fixed sidebar */}
+        <div className="flex-1 ml-64 p-8">
           <Routes>
             <Route path="/" element={<OperatorHome />} />
             <Route path="/create-applicant" element={<CreateApplicant />} />
