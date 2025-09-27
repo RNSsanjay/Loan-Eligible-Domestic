@@ -10,6 +10,8 @@ export const LoanApplicationsList: React.FC = () => {
   const [applications, setApplications] = useState<LoanApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchApplications = async () => {
@@ -25,6 +27,28 @@ export const LoanApplicationsList: React.FC = () => {
 
     fetchApplications();
   }, []);
+
+  const handleDelete = async (appId: string) => {
+    if (!deleteConfirm || deleteConfirm !== appId) {
+      setDeleteConfirm(appId);
+      return;
+    }
+
+    setDeleteLoading(appId);
+    try {
+      await operatorAPI.deleteLoanApplication(appId);
+      setApplications(prev => prev.filter(app => app.id !== appId));
+      setDeleteConfirm(null);
+    } catch (error: any) {
+      setError('Failed to delete application');
+    } finally {
+      setDeleteLoading(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirm(null);
+  };
 
   const getStatusBadge = (status: string) => {
     const statusClasses = {
@@ -117,11 +141,47 @@ export const LoanApplicationsList: React.FC = () => {
                 </div>
                 
                 <div className="ml-6 flex flex-col space-y-2">
-                  {(app.status === 'pending' || !app.status) && app.id && (
-                    <Link to={`/operator/verify/${app.id}`}>
-                      <Button size="sm">Verify Application</Button>
-                    </Link>
+                  {app.id && (
+                    <>
+                      {(app.status === 'pending' || !app.status) && (
+                        <Link to={`/operator/verification/${app.id}`}>
+                          <Button size="sm">Verify Application</Button>
+                        </Link>
+                      )}
+                      
+                      {deleteConfirm === app.id ? (
+                        <div className="space-y-1">
+                          <Button 
+                            size="sm" 
+                            variant="danger" 
+                            onClick={() => handleDelete(app.id!)}
+                            loading={deleteLoading === app.id}
+                            className="w-full"
+                          >
+                            Confirm Delete
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="secondary" 
+                            onClick={cancelDelete}
+                            className="w-full"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button 
+                          size="sm" 
+                          variant="secondary" 
+                          onClick={() => handleDelete(app.id!)}
+                          className="text-red-600 hover:bg-red-50 border-red-300"
+                        >
+                          Delete
+                        </Button>
+                      )}
+                    </>
                   )}
+                  
                   {app.status === 'verified' && (
                     <span className="text-sm text-green-600 font-medium">
                       Awaiting Manager Approval

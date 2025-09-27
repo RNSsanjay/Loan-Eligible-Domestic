@@ -71,6 +71,22 @@ export const operatorAPI = {
     
   verifyLoanApplication: (id: string, data: any) =>
     api.put(`/operator/loan-applications/${id}/verify`, data).then(res => res.data),
+    
+  // Get single loan application
+  getLoanApplicationById: (id: string) =>
+    api.get(`/operator/loan-applications/${id}`).then(res => res.data),
+    
+  // Send verification step email
+  sendVerificationStepEmail: (id: string, step: string, data: any) =>
+    api.post(`/operator/loan-applications/${id}/verification-email`, { step, ...data }).then(res => res.data),
+    
+  // Complete verification process
+  completeVerification: (id: string, data: any) =>
+    api.put(`/operator/loan-applications/${id}/complete-verification`, data).then(res => res.data),
+    
+  // Delete loan application
+  deleteLoanApplication: (id: string) =>
+    api.delete(`/operator/loan-applications/${id}`).then(res => res.data),
 };
 
 // Manager API

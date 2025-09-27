@@ -69,7 +69,7 @@ export const LandingPage: React.FC = () => {
         <div className="max-w-10xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">      
-              <span className="text-xl font-bold text-gray-900">DLM</span>
+              <span className="text-2xl font-bold text-green-900">FurryFunds</span>
             </div>
             <Button 
               onClick={() => navigate('/login')}

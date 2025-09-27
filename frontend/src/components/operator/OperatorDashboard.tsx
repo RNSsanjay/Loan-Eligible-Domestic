@@ -5,7 +5,7 @@ import { CreateApplicant } from '../operator/CreateApplicant';
 import { CreateAnimal } from '../operator/CreateAnimal';
 import { CreateLoanApplication } from '../operator/CreateLoanApplication';
 import { LoanApplicationsList } from '../operator/LoanApplicationsList';
-import { VerifyLoanApplication } from '../operator/VerifyLoanApplication';
+import { VerificationStepper } from '../operator/verify/VerificationStepper';
 
 export const OperatorDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -80,7 +80,7 @@ export const OperatorDashboard: React.FC = () => {
             <Route path="/create-animal" element={<CreateAnimal />} />
             <Route path="/create-loan" element={<CreateLoanApplication />} />
             <Route path="/applications" element={<LoanApplicationsList />} />
-            <Route path="/verify/:id" element={<VerifyLoanApplication />} />
+            <Route path="/verification/:id" element={<VerificationStepper />} />
           </Routes>
         </div>
       </div>
