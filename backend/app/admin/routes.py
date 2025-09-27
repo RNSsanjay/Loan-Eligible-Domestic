@@ -1,7 +1,10 @@
-from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List, Optional
 from bson import ObjectId
 from datetime import datetime
+import secrets
+import string
+from pydantic import BaseModel
 
 from ..common.models import (
     User, UserCreate, UserRole, UserUpdate, LoanApplication, LoanStatus
@@ -9,6 +12,15 @@ from ..common.models import (
 from ..common.auth import get_current_active_user, get_password_hash
 from ..common.database import get_database
 from ..common.file_utils import save_profile_image, delete_profile_image
+from ..common.serializers import serialize_user_document, serialize_document_list, serialize_objectid
+from ..common.email_service import email_service
+
+class CreateManagerRequest(BaseModel):
+    name: str
+    email: str
+    phone: str
+    password: str
+    profile_image_base64: Optional[str] = None
 
 router = APIRouter()
 
@@ -22,16 +34,13 @@ def require_admin(current_user: User = Depends(get_current_active_user)):
 
 @router.post("/managers", response_model=dict)
 async def create_manager(
-    name: str = Form(...),
-    email: str = Form(...),
-    phone: str = Form(...),
-    profile_image: Optional[UploadFile] = File(None),
+    request: CreateManagerRequest,
     current_user: User = Depends(require_admin)
 ):
     db = await get_database()
     
     # Check if email already exists
-    existing = await db.users.find_one({"email": email})
+    existing = await db.users.find_one({"email": request.email})
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -40,41 +49,47 @@ async def create_manager(
     
     # Create manager data
     user_dict = {
-        "name": name,
-        "email": email,
-        "phone": phone,
+        "name": request.name,
+        "email": request.email,
+        "phone": request.phone,
         "role": UserRole.MANAGER,
-        "is_active": True,
+        "is_active": True,  # Active by default
         "created_by": ObjectId(current_user.id),
-        "first_login": True,
+        "password_hash": get_password_hash(request.password),
+        "first_login": False,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow()
     }
+    
+    # Add profile image as base64 if provided
+    if request.profile_image_base64:
+        user_dict["profile_image_base64"] = request.profile_image_base64
     
     # Insert user first to get ID
     result = await db.users.insert_one(user_dict)
     user_id = str(result.inserted_id)
     
-    # Handle profile image upload
-    if profile_image and profile_image.filename:
-        try:
-            image_path = save_profile_image(profile_image, user_id)
-            await db.users.update_one(
-                {"_id": result.inserted_id},
-                {"$set": {"profile_image": image_path}}
-            )
-        except HTTPException:
-            # If image upload fails, delete the user and re-raise
-            await db.users.delete_one({"_id": result.inserted_id})
-            raise
+    # Send email notification
+    try:
+        await email_service.send_user_creation_notification(
+            user_email=request.email,
+            user_name=request.name,
+            user_role="manager",
+            temporary_password=request.password,
+            created_by_name=current_user.name
+        )
+    except Exception as e:
+        print(f"Failed to send email notification: {str(e)}")
+        # Don't fail the user creation if email fails
+    
     
     return {
         "id": user_id,
-        "email": email,
-        "message": "Manager created successfully. They need to set their password on first login."
+        "email": request.email,
+        "message": "Manager created successfully and is now active. Email notification sent."
     }
 
-@router.get("/managers", response_model=List[User])
+@router.get("/managers", response_model=List[dict])
 async def get_managers(
     current_user: User = Depends(require_admin)
 ):
@@ -85,11 +100,11 @@ async def get_managers(
         "role": UserRole.MANAGER,
         "created_by": ObjectId(current_user.id)
     }):
-        managers.append(User(**user))
+        managers.append(serialize_user_document(user))
     
     return managers
 
-@router.get("/managers/{manager_id}", response_model=User)
+@router.get("/managers/{manager_id}", response_model=dict)
 async def get_manager(
     manager_id: str,
     current_user: User = Depends(require_admin)
@@ -108,7 +123,7 @@ async def get_manager(
             detail="Manager not found"
         )
     
-    return User(**manager)
+    return serialize_user_document(manager)
 
 @router.put("/managers/{manager_id}", response_model=dict)
 async def update_manager(
@@ -165,7 +180,7 @@ async def delete_manager(
     
     return {"message": "Manager deleted successfully"}
 
-@router.get("/managers/{manager_id}/operators", response_model=List[User])
+@router.get("/managers/{manager_id}/operators", response_model=List[dict])
 async def get_manager_operators(
     manager_id: str,
     current_user: User = Depends(require_admin)
@@ -190,7 +205,7 @@ async def get_manager_operators(
         "role": UserRole.OPERATOR,
         "created_by": ObjectId(manager_id)
     }):
-        operators.append(User(**user))
+        operators.append(serialize_user_document(user))
     
     return operators
 

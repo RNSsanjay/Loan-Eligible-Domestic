@@ -2,6 +2,9 @@ import React from 'react';
 import { Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { OperatorManagement } from './OperatorManagement';
+import { FarmStoryAnimation } from '../common/FarmStoryAnimation';
+import { ApplicationReview } from './ApplicationReview';
+import { ManagerReports } from './ManagerReports';
 
 export const ManagerDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -14,34 +17,15 @@ export const ManagerDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navigation Header */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-10xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900">
-                Livestock Loan - Manager
-              </h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
-                Welcome, {user?.name}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-              >
-                Logout
-              </button>
-            </div>
+      <div className="flex relative z-10">
+        {/* Fixed Sidebar */}
+        <div className="fixed left-0 top-8 w-64 bg-white/90 backdrop-blur-lg shadow-lg h-screen overflow-y-auto z-50">
+          <div className="p-4 border-b border-gray-200">
+            {/* <h1 className="text-xl font-bold text-gray-900">Manager Portal</h1>
+            <p className="text-sm text-gray-600">Loan Management System</p> */}
           </div>
-        </div>
-      </nav>
-
-      <div className="flex">
-        {/* Sidebar */}
-        <div className="w-64 bg-white shadow-sm h-screen">
-          <nav className="mt-8">
+          
+          <nav className="mt-6">
             <div className="px-4">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
                 Management
@@ -82,15 +66,20 @@ export const ManagerDashboard: React.FC = () => {
               </ul>
             </div>
           </nav>
+          
+          {/* Farm Story Animation at the bottom */}
+          <div className="absolute bottom-4 left-0 right-0">
+            <FarmStoryAnimation />
+          </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 p-8">
+        {/* Main Content - with left margin to account for fixed sidebar */}
+        <div className="flex-1 ml-64 p-8">
           <Routes>
             <Route path="/" element={<ManagerHome />} />
             <Route path="/operators" element={<OperatorManagement />} />
-            <Route path="/applications" element={<div>Application Review - Coming Soon</div>} />
-            <Route path="/reports" element={<div>Reports - Coming Soon</div>} />
+            <Route path="/applications" element={<ApplicationReview />} />
+            <Route path="/reports" element={<ManagerReports />} />
           </Routes>
         </div>
       </div>
@@ -106,7 +95,7 @@ const ManagerHome: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <div className="p-3 rounded-full bg-blue-100 text-blue-600">
+            <div className="p-3 rounded-full bg-green-100 text-green-600">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
@@ -134,7 +123,7 @@ const ManagerHome: React.FC = () => {
 
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
+            <div className="p-3 rounded-full bg-green-50 text-green-500">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>

@@ -4,7 +4,7 @@ import { Card } from '../common/Card';
 import { Input } from '../common/Input';
 import { Button } from '../common/Button';
 import { Loading } from '../common/Loading';
-import { ImageUpload } from '../common/ImageUpload';
+import { EnhancedImageUpload } from '../common/EnhancedImageUpload';
 
 interface Manager {
   id: string;
@@ -20,7 +20,8 @@ interface CreateManagerData {
   name: string;
   email: string;
   phone: string;
-  profileImage?: File | null;
+  password: string;
+  profile_image_base64?: string;
 }
 
 export const ManagerManagement: React.FC = () => {
@@ -35,7 +36,8 @@ export const ManagerManagement: React.FC = () => {
     name: '',
     email: '',
     phone: '',
-    profileImage: null
+    password: '',
+    profile_image_base64: undefined
   });
 
   useEffect(() => {
@@ -62,8 +64,8 @@ export const ManagerManagement: React.FC = () => {
 
     try {
       await adminAPI.createManager(createData);
-      setSuccess('Manager created successfully! They will receive login instructions.');
-      setCreateData({ name: '', email: '', phone: '', profileImage: null });
+      setSuccess('Manager created successfully with password set!');
+      setCreateData({ name: '', email: '', phone: '', password: '', profile_image_base64: undefined });
       setShowCreateForm(false);
       loadManagers();
     } catch (err: any) {
@@ -77,8 +79,8 @@ export const ManagerManagement: React.FC = () => {
     setCreateData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleProfileImageChange = (file: File | null, preview: string | null) => {
-    setCreateData(prev => ({ ...prev, profileImage: file }));
+  const handleProfileImageChange = (base64: string) => {
+    setCreateData(prev => ({ ...prev, profile_image_base64: base64 }));
   };
 
   const handleDeactivateManager = async (managerId: string) => {
@@ -105,6 +107,20 @@ export const ManagerManagement: React.FC = () => {
     }
   };
 
+  const handleDeleteManager = async (managerId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this manager? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await adminAPI.deleteManager(managerId);
+      setSuccess('Manager deleted successfully');
+      loadManagers();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to delete manager');
+    }
+  };
+
   if (loading) {
     return <Loading size="lg" text="Loading managers..." />;
   }
@@ -122,7 +138,7 @@ export const ManagerManagement: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+        <div className="mb-4 p-4 bg-green-50 border border-green-300 text-green-700 rounded">
           {error}
         </div>
       )}
@@ -135,7 +151,7 @@ export const ManagerManagement: React.FC = () => {
 
       {/* Create Manager Modal */}
       {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 mt-10">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Manager</h3>
             
@@ -167,10 +183,21 @@ export const ManagerManagement: React.FC = () => {
                   required
                   placeholder="Enter manager's phone number"
                 />
+                
+                <Input
+                  label="Password"
+                  type="password"
+                  value={createData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  required
+                  placeholder="Enter a secure password"
+                  minLength={6}
+                />
 
-                <ImageUpload
+                <EnhancedImageUpload
                   label="Profile Picture"
                   onChange={handleProfileImageChange}
+                  value={createData.profile_image_base64}
                   className="mt-4"
                 />
               </div>
@@ -180,7 +207,7 @@ export const ManagerManagement: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setShowCreateForm(false);
-                    setCreateData({ name: '', email: '', phone: '', profileImage: null });
+                    setCreateData({ name: '', email: '', phone: '', password: '', profile_image_base64: undefined });
                     setError('');
                   }}
                   variant="secondary"
@@ -205,11 +232,13 @@ export const ManagerManagement: React.FC = () => {
         {managers.map((manager) => (
           <Card key={manager.id} className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">{manager.name}</h3>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+              <h3 className="text-lg font-semibold text-gray-900 truncate flex-1 min-w-0 mr-2" title={manager.name}>
+                {manager.name}
+              </h3>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
                 manager.is_active 
                   ? 'bg-green-100 text-green-800' 
-                  : 'bg-red-100 text-red-800'
+                  : 'bg-gray-100 text-gray-800'
               }`}>
                 {manager.is_active ? 'Active' : 'Inactive'}
               </span>
@@ -217,17 +246,17 @@ export const ManagerManagement: React.FC = () => {
             
             <div className="space-y-2 mb-4">
               <div className="flex items-center text-sm text-gray-600">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
-                {manager.email}
+                <span className="truncate" title={manager.email}>{manager.email}</span>
               </div>
               
               <div className="flex items-center text-sm text-gray-600">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                 </svg>
-                {manager.phone}
+                <span className="truncate" title={manager.phone}>{manager.phone}</span>
               </div>
               
               <div className="flex items-center text-sm text-gray-600">
@@ -244,7 +273,7 @@ export const ManagerManagement: React.FC = () => {
                   onClick={() => handleDeactivateManager(manager.id)}
                   variant="danger"
                   size="sm"
-                  className="text-red-600 border-red-600 hover:bg-red-50"
+                  className=" border-green-600 hover:bg-green-50"
                 >
                   Deactivate
                 </Button>
@@ -259,11 +288,12 @@ export const ManagerManagement: React.FC = () => {
               )}
               
               <Button
-                variant="secondary"
+                onClick={() => handleDeleteManager(manager.id)}
+                variant="danger"
                 size="sm"
-                className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                className="bg-gray-600 hover:bg-gray-700 text-white"
               >
-                View Details
+                Delete
               </Button>
             </div>
           </Card>

@@ -5,10 +5,14 @@ from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
+import warnings
 from dotenv import load_dotenv
 
 from .models import User, TokenData
 from .database import get_database
+
+# Suppress bcrypt warnings
+warnings.filterwarnings("ignore", message=".*bcrypt.*")
 
 load_dotenv()
 

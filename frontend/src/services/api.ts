@@ -35,6 +35,12 @@ export const authAPI = {
     
   getProfile: () =>
     api.get('/auth/me').then(res => res.data),
+    
+  updateProfile: (data: any) =>
+    api.put('/auth/profile', data).then(res => res.data),
+    
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    api.put('/auth/change-password', data).then(res => res.data),
 };
 
 // Operator API
@@ -65,25 +71,29 @@ export const operatorAPI = {
     
   verifyLoanApplication: (id: string, data: any) =>
     api.put(`/operator/loan-applications/${id}/verify`, data).then(res => res.data),
+    
+  // Get single loan application
+  getLoanApplicationById: (id: string) =>
+    api.get(`/operator/loan-applications/${id}`).then(res => res.data),
+    
+  // Send verification step email
+  sendVerificationStepEmail: (id: string, step: string, data: any) =>
+    api.post(`/operator/loan-applications/${id}/verification-email`, { step, ...data }).then(res => res.data),
+    
+  // Complete verification process
+  completeVerification: (id: string, data: any) =>
+    api.put(`/operator/loan-applications/${id}/complete-verification`, data).then(res => res.data),
+    
+  // Delete loan application
+  deleteLoanApplication: (id: string) =>
+    api.delete(`/operator/loan-applications/${id}`).then(res => res.data),
 };
 
 // Manager API
 export const managerAPI = {
   // Operators
-  createOperator: (data: any) => {
-    const formData = new FormData();
-    formData.append('name', data.name);
-    formData.append('email', data.email);
-    formData.append('phone', data.phone);
-    if (data.profileImage) {
-      formData.append('profile_image', data.profileImage);
-    }
-    return api.post('/manager/operators', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }).then(res => res.data);
-  },
+  createOperator: (data: any) =>
+    api.post('/manager/operators', data).then(res => res.data),
     
   getOperators: () =>
     api.get('/manager/operators').then(res => res.data),
@@ -110,25 +120,20 @@ export const managerAPI = {
   // Dashboard
   getDashboardStats: () =>
     api.get('/manager/dashboard/stats').then(res => res.data),
+    
+  // Reports
+  getOperatorPerformanceReport: () =>
+    api.get('/manager/reports/operator-performance').then(res => res.data),
+    
+  getMonthlyAnalytics: (months: number = 6) =>
+    api.get('/manager/reports/monthly-analytics', { params: { months } }).then(res => res.data),
 };
 
 // Admin API       
 export const adminAPI = {
   // Managers
-  createManager: (data: any) => {
-    const formData = new FormData();
-    formData.append('name', data.name);
-    formData.append('email', data.email);
-    formData.append('phone', data.phone);
-    if (data.profileImage) {
-      formData.append('profile_image', data.profileImage);
-    }
-    return api.post('/admin/managers', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }).then(res => res.data);
-  },
+  createManager: (data: any) =>
+    api.post('/admin/managers', data).then(res => res.data),
     
   getManagers: () =>
     api.get('/admin/managers').then(res => res.data),

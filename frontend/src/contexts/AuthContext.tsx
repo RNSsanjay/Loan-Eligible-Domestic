@@ -13,6 +13,7 @@ type AuthAction =
   | { type: 'LOGIN_START' }
   | { type: 'LOGIN_SUCCESS'; payload: { user: User; token: string } }
   | { type: 'LOGIN_ERROR'; payload: string }
+  | { type: 'UPDATE_USER'; payload: User }
   | { type: 'LOGOUT' }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'CLEAR_ERROR' };
@@ -38,6 +39,8 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
       };
     case 'LOGIN_ERROR':
       return { ...state, loading: false, error: action.payload };
+    case 'UPDATE_USER':
+      return { ...state, user: action.payload };
     case 'LOGOUT':
       return { ...initialState, token: null };
     case 'SET_LOADING':
@@ -53,6 +56,7 @@ interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   clearError: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -86,25 +90,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       dispatch({ type: 'LOGIN_START' });
       const response = await authAPI.login({ email, password });
       
-      // Check if this is a first login case (202 status means password setup required)
-      if (!response.access_token) {
-        // This is likely a first login case - the backend should have returned 202
-        // but axios converts it to a successful response. We need to handle this.
-        throw new Error('First login: password setup required');
-      }
-      
       localStorage.setItem('token', response.access_token);
       const user = await authAPI.getProfile();
       dispatch({ type: 'LOGIN_SUCCESS', payload: { user, token: response.access_token } });
     } catch (error: any) {
-      // Check if it's a 202 status (first login)
-      if (error.response?.status === 202) {
-        const message = error.response?.data?.detail || 'Password setup required';
-        dispatch({ type: 'LOGIN_ERROR', payload: message });
-      } else {
-        const message = error.response?.data?.detail || 'Login failed';
-        dispatch({ type: 'LOGIN_ERROR', payload: message });
-      }
+      const message = error.response?.data?.detail || 'Login failed';
+      dispatch({ type: 'LOGIN_ERROR', payload: message });
       throw error;
     }
   };
@@ -118,6 +109,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'CLEAR_ERROR' });
   };
 
+  const refreshUser = async () => {
+    try {
+      const user = await authAPI.getProfile();
+      dispatch({ type: 'UPDATE_USER', payload: user });
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -125,6 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         logout,
         clearError,
+        refreshUser,
       }}
     >
       {children}

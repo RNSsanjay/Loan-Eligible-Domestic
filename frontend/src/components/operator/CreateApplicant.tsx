@@ -80,8 +80,8 @@ export const CreateApplicant: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-red-800 text-sm">{error}</p>
+        <div className="mb-6 p-4 bg-green-50 border border-green-300 rounded-md">
+          <p className="text-green-700 text-sm">{error}</p>
         </div>
       )}
 
@@ -235,7 +235,9 @@ export const CreateApplicant: React.FC = () => {
                 {applicant.family_members.map((member, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
                     <span className="text-sm">
-                      {member.name} ({member.relationship}, Age: {member.age}, {member.occupation})
+                      <div className="truncate max-w-[300px]" title={`${member.name} (${member.relationship}, Age: ${member.age}, ${member.occupation})`}>
+                        {member.name} ({member.relationship}, Age: {member.age}, {member.occupation})
+                      </div>
                     </span>
                     <Button
                       type="button"

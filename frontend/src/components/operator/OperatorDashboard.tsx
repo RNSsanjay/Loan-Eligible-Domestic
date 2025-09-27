@@ -5,7 +5,8 @@ import { CreateApplicant } from '../operator/CreateApplicant';
 import { CreateAnimal } from '../operator/CreateAnimal';
 import { CreateLoanApplication } from '../operator/CreateLoanApplication';
 import { LoanApplicationsList } from '../operator/LoanApplicationsList';
-import { VerifyLoanApplication } from '../operator/VerifyLoanApplication';
+import { VerificationStepper } from '../operator/verify/VerificationStepper';
+import { FarmStoryAnimation } from '../common/FarmStoryAnimation';
 
 export const OperatorDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -18,34 +19,15 @@ export const OperatorDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navigation Header */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-10xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900">
-                Livestock Loan - Operator
-              </h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
-                Welcome, {user?.name}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-              >
-                Logout
-              </button>
-            </div>
+      <div className="flex relative z-10">
+        {/* Fixed Sidebar */}
+        <div className="fixed left-0 top-6 w-64 bg-white/90 backdrop-blur-lg shadow-lg h-screen overflow-y-auto z-50">
+          <div className="p-4 border-b border-gray-200">
+            {/* <h1 className="text-xl font-bold text-gray-900">Operator Portal</h1>
+            <p className="text-sm text-gray-600">Loan Management System</p> */}
           </div>
-        </div>
-      </nav>
-
-      <div className="flex">
-        {/* Sidebar */}
-        <div className="w-64 bg-white shadow-sm h-screen">
-          <nav className="mt-8">
+          
+          <nav className="mt-6">
             <div className="px-4">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
                 Loan Management
@@ -94,17 +76,22 @@ export const OperatorDashboard: React.FC = () => {
               </ul>
             </div>
           </nav>
+          
+          {/* Farm Story Animation at the bottom */}
+          <div className="absolute bottom-4 left-0 right-0">
+            <FarmStoryAnimation />
+          </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 p-8">
+        {/* Main Content - with left margin to account for fixed sidebar */}
+        <div className="flex-1 ml-64 p-8">
           <Routes>
             <Route path="/" element={<OperatorHome />} />
             <Route path="/create-applicant" element={<CreateApplicant />} />
             <Route path="/create-animal" element={<CreateAnimal />} />
             <Route path="/create-loan" element={<CreateLoanApplication />} />
             <Route path="/applications" element={<LoanApplicationsList />} />
-            <Route path="/verify/:id" element={<VerifyLoanApplication />} />
+            <Route path="/verification/:id" element={<VerificationStepper />} />
           </Routes>
         </div>
       </div>
@@ -120,7 +107,7 @@ const OperatorHome: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <div className="p-3 rounded-full bg-blue-100 text-blue-600">
+            <div className="p-3 rounded-full bg-green-100 text-green-600">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
               </svg>
@@ -148,7 +135,7 @@ const OperatorHome: React.FC = () => {
 
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
+            <div className="p-3 rounded-full bg-green-50 text-green-500">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>

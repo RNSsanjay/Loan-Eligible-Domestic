@@ -48,8 +48,8 @@ export const CreateAnimal: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-red-800 text-sm">{error}</p>
+        <div className="mb-6 p-4 bg-green-50 border border-green-300 rounded-md">
+          <p className="text-green-700 text-sm">{error}</p>
         </div>
       )}
 
@@ -164,9 +164,9 @@ export const CreateAnimal: React.FC = () => {
         {/* Additional Information */}
         {animal.type === 'cow' && (
           <Card title="Cow-Specific Information" className="mt-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-              <h4 className="text-sm font-medium text-blue-800 mb-2">Important Notes for Cow Loans:</h4>
-              <ul className="text-sm text-blue-700 space-y-1">
+            <div className="bg-green-50 border border-green-300 rounded-md p-4">
+              <h4 className="text-sm font-medium text-green-800 mb-2">Important Notes for Cow Loans:</h4>
+              <ul className="text-sm text-green-700 space-y-1">
                 <li>• Minimum age: 2 years for dairy cows</li>
                 <li>• Health certificate from veterinarian required</li>
                 <li>• Vaccination records must be up to date</li>

@@ -69,18 +69,20 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-white">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center relative">
+      <Card className="w-full max-w-md animate-fadeInUp">
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Livestock Loan System</h1>
+          <div className="flex items-center justify-center mb-4">
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Domestic Loan Management</h1>
           <p className="text-gray-600">
             {showSetPassword ? 'Set your password' : 'Sign in to your account'}
           </p>
         </div>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-red-800 text-sm">{error}</p>
+          <div className="mb-4 p-4 bg-green-50 border border-green-300 rounded-md">
+            <p className="text-green-700 text-sm">{error}</p>
           </div>
         )}
 
@@ -117,8 +119,8 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           </form>
         ) : (
           <form onSubmit={handleSetPassword} className="space-y-4">
-            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-blue-800 text-sm">
+            <div className="mb-4 p-4 bg-green-50 border border-green-300 rounded-md">
+              <p className="text-green-700 text-sm">
                 This is your first login. Please set a secure password.
               </p>
             </div>

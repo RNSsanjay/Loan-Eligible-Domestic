@@ -10,6 +10,8 @@ export const LoanApplicationsList: React.FC = () => {
   const [applications, setApplications] = useState<LoanApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchApplications = async () => {
@@ -26,17 +28,42 @@ export const LoanApplicationsList: React.FC = () => {
     fetchApplications();
   }, []);
 
+  const handleDelete = async (appId: string) => {
+    if (!deleteConfirm || deleteConfirm !== appId) {
+      setDeleteConfirm(appId);
+      return;
+    }
+
+    setDeleteLoading(appId);
+    try {
+      await operatorAPI.deleteLoanApplication(appId);
+      setApplications(prev => prev.filter(app => app.id !== appId));
+      setDeleteConfirm(null);
+    } catch (error: any) {
+      setError('Failed to delete application');
+    } finally {
+      setDeleteLoading(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirm(null);
+  };
+
   const getStatusBadge = (status: string) => {
     const statusClasses = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      verified: 'bg-blue-100 text-blue-800',
-      approved: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800'
+      pending: 'bg-green-100 text-green-800',
+      verified: 'bg-green-200 text-green-900',
+      approved: 'bg-green-300 text-green-900',
+      rejected: 'bg-gray-100 text-gray-800'
     };
 
+    // Handle undefined or null status
+    const safeStatus = status || 'pending';
+    
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClasses[status as keyof typeof statusClasses]}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClasses[safeStatus as keyof typeof statusClasses] || 'bg-gray-100 text-gray-800'}`}>
+        {safeStatus.charAt(0).toUpperCase() + safeStatus.slice(1)}
       </span>
     );
   };
@@ -58,8 +85,8 @@ export const LoanApplicationsList: React.FC = () => {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-red-800 text-sm">{error}</p>
+        <div className="mb-6 p-4 bg-green-50 border border-green-300 rounded-md">
+          <p className="text-green-700 text-sm">{error}</p>
         </div>
       )}
 
@@ -79,12 +106,12 @@ export const LoanApplicationsList: React.FC = () => {
       ) : (
         <div className="space-y-4">
           {applications.map((app) => (
-            <Card key={app.id} className="hover:shadow-lg transition-shadow">
+            <Card key={app.id || app.application_number} className="hover:shadow-lg transition-shadow">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-lg font-semibold text-gray-900">
-                      Application #{app.application_number}
+                      Application #{app.application_number || 'N/A'}
                     </h3>
                     {getStatusBadge(app.status)}
                   </div>
@@ -96,11 +123,11 @@ export const LoanApplicationsList: React.FC = () => {
                     </div>
                     <div>
                       <span className="font-medium">Animal:</span><br />
-                      {(app.animal as any)?.[0]?.type} - {(app.animal as any)?.[0]?.breed || 'N/A'}
+                      {(app.animal as any)?.[0]?.type || 'N/A'} - {(app.animal as any)?.[0]?.breed || 'N/A'}
                     </div>
                     <div>
                       <span className="font-medium">Loan Amount:</span><br />
-                      ₹{app.loan_amount.toLocaleString()}
+                      ₹{(app.loan_amount || 0).toLocaleString()}
                     </div>
                     <div>
                       <span className="font-medium">Created:</span><br />
@@ -109,18 +136,54 @@ export const LoanApplicationsList: React.FC = () => {
                   </div>
                   
                   <div className="mt-3 text-sm text-gray-600">
-                    <span className="font-medium">Purpose:</span> {app.purpose}
+                    <span className="font-medium">Purpose:</span> {app.purpose || 'N/A'}
                   </div>
                 </div>
                 
                 <div className="ml-6 flex flex-col space-y-2">
-                  {app.status === 'pending' && (
-                    <Link to={`/operator/verify/${app.id}`}>
-                      <Button size="sm">Verify Application</Button>
-                    </Link>
+                  {app.id && (
+                    <>
+                      {(app.status === 'pending' || !app.status) && (
+                        <Link to={`/operator/verification/${app.id}`}>
+                          <Button size="sm">Verify Application</Button>
+                        </Link>
+                      )}
+                      
+                      {deleteConfirm === app.id ? (
+                        <div className="space-y-1">
+                          <Button 
+                            size="sm" 
+                            variant="danger" 
+                            onClick={() => handleDelete(app.id!)}
+                            loading={deleteLoading === app.id}
+                            className="w-full"
+                          >
+                            Confirm Delete
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="secondary" 
+                            onClick={cancelDelete}
+                            className="w-full"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button 
+                          size="sm" 
+                          variant="secondary" 
+                          onClick={() => handleDelete(app.id!)}
+                          className="text-red-600 hover:bg-red-50 border-red-300"
+                        >
+                          Delete
+                        </Button>
+                      )}
+                    </>
                   )}
+                  
                   {app.status === 'verified' && (
-                    <span className="text-sm text-blue-600 font-medium">
+                    <span className="text-sm text-green-600 font-medium">
                       Awaiting Manager Approval
                     </span>
                   )}
@@ -130,7 +193,7 @@ export const LoanApplicationsList: React.FC = () => {
                     </span>
                   )}
                   {app.status === 'rejected' && (
-                    <span className="text-sm text-red-600 font-medium">
+                    <span className="text-sm text-gray-600 font-medium">
                       ✗ Application Rejected
                     </span>
                   )}
