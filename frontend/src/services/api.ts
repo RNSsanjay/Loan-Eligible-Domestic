@@ -62,6 +62,31 @@ export const operatorAPI = {
   getAnimals: () =>
     api.get('/operator/animals').then(res => res.data),
     
+  // Image Processing
+  processCowImage: (data: { image_base64: string; image_type: 'face' | 'nose'; application_id: string }) =>
+    api.post('/operator/process-cow-image', data).then(res => res.data),
+    
+  processCowFaceWithManualZoom: (data: { image_base64: string; zoom_coordinates: any; application_id: string }) =>
+    api.post('/operator/process-cow-face-manual-zoom', data).then(res => res.data),
+    
+  checkNosePatternDuplicate: (data: { pattern_hash: string; application_id?: string }) =>
+    api.post('/operator/check-nose-pattern-duplicate', data).then(res => res.data),
+    
+  // Predict cow weight from side images
+  predictCowWeight: (data: { 
+    application_id: string; 
+    left_side_image: string; 
+    right_side_image: string; 
+    breed?: string; 
+    age_years?: number; 
+    reference_length_cm?: number;
+    prediction_mode?: 'manual' | 'ai' | 'both';
+  }) =>
+    api.post('/operator/predict-cow-weight', data).then(res => res.data),
+    
+  saveVerificationStep: (data: { application_id: string; step_data: any; images?: any }) =>
+    api.post('/operator/verification-step', data).then(res => res.data),
+    
   // Loan Applications
   createLoanApplication: (data: any) =>
     api.post('/operator/loan-applications', data).then(res => res.data),

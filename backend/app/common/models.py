@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr, GetJsonSchemaHandler, ConfigDict
+from pydantic import BaseModel, Field, EmailStr, ConfigDict, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema
 from typing import Optional, List, Any

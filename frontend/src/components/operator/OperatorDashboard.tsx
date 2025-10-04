@@ -6,6 +6,7 @@ import { CreateAnimal } from '../operator/CreateAnimal';
 import { CreateLoanApplication } from '../operator/CreateLoanApplication';
 import { LoanApplicationsList } from '../operator/LoanApplicationsList';
 import { VerificationStepper } from '../operator/verify/VerificationStepper';
+import { WeightPredictionTest } from '../operator/WeightPredictionTest';
 import { FarmStoryAnimation } from '../common/FarmStoryAnimation';
 
 export const OperatorDashboard: React.FC = () => {
@@ -73,6 +74,14 @@ export const OperatorDashboard: React.FC = () => {
                     View Applications
                   </Link>
                 </li>
+                <li>
+                  <Link
+                    to="/operator/weight-test"
+                    className="block px-4 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-700"
+                  >
+                    Weight Prediction Test
+                  </Link>
+                </li>
               </ul>
             </div>
           </nav>
@@ -92,6 +101,7 @@ export const OperatorDashboard: React.FC = () => {
             <Route path="/create-loan" element={<CreateLoanApplication />} />
             <Route path="/applications" element={<LoanApplicationsList />} />
             <Route path="/verification/:id" element={<VerificationStepper />} />
+            <Route path="/weight-test" element={<WeightPredictionTest />} />
           </Routes>
         </div>
       </div>

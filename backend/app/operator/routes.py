@@ -3,6 +3,10 @@ from typing import List, Optional
 from bson import ObjectId
 from datetime import datetime
 import uuid
+import base64
+from pydantic import BaseModel
+from PIL import Image
+from io import BytesIO
 
 from ..common.models import (
     User, UserRole, LoanApplication, LoanApplicationCreate, Applicant, 
@@ -12,6 +16,27 @@ from ..common.models import (
 from ..common.auth import get_current_active_user
 from ..common.database import get_database
 from ..common.serializers import serialize_objectid
+from ..common.image_processor import cow_nose_processor
+
+# Request models for image processing
+class ImageProcessRequest(BaseModel):
+    image_base64: str
+    image_type: str  # 'face' or 'nose'
+    application_id: str
+
+class ManualZoomRequest(BaseModel):
+    image_base64: str
+    zoom_coordinates: dict
+    application_id: str
+
+class PatternCheckRequest(BaseModel):
+    pattern_hash: str
+    application_id: Optional[str] = None
+
+class VerificationStepRequest(BaseModel):
+    application_id: str
+    step_data: dict
+    images: Optional[dict] = None
 
 router = APIRouter()
 
@@ -90,6 +115,334 @@ async def get_animals(
     async for animal in db.animals.find():
         animals.append(serialize_objectid(animal))
     return animals
+
+# Image Processing Endpoints
+@router.post("/process-cow-image", response_model=dict)
+async def process_cow_image(
+    request: ImageProcessRequest,
+    current_user: User = Depends(require_operator)
+):
+    """
+    Process cow images (face or nose) with enhancement and nose detection
+    """
+    try:
+        db = await get_database()
+        
+        # Verify application exists and belongs to this operator
+        application = await db.loan_applications.find_one({
+            "_id": ObjectId(request.application_id),
+            "operator_id": ObjectId(current_user.id)
+        })
+        
+        if not application:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Loan application not found"
+            )
+        
+        # Process image based on type
+        if request.image_type == "face":
+            # For backward compatibility, use simple face processing
+            enhanced_face = cow_nose_processor._enhance_image_quality(
+                Image.open(BytesIO(base64.b64decode(request.image_base64.split(',')[1] if ',' in request.image_base64 else request.image_base64)))
+            )
+            result = {
+                "success": True,
+                "original_base64": request.image_base64,
+                "enhanced_base64": cow_nose_processor._pil_to_base64(enhanced_face),
+                "processing_notes": "Face image enhanced for better clarity"
+            }
+        elif request.image_type == "nose":
+            # For backward compatibility, use simple nose processing
+            enhanced_face = cow_nose_processor._enhance_image_quality(
+                Image.open(BytesIO(base64.b64decode(request.image_base64.split(',')[1] if ',' in request.image_base64 else request.image_base64)))
+            )
+            result = {
+                "success": True,
+                "original_base64": request.image_base64,
+                "enhanced_original_base64": cow_nose_processor._pil_to_base64(enhanced_face),
+                "processing_notes": "Nose image enhanced for better clarity"
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid image type. Must be 'face' or 'nose'"
+            )
+        
+        if not result["success"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Image processing failed: {result.get('error', 'Unknown error')}"
+            )
+        
+        # Store processed images in database
+        image_data = {
+            f"cow_{request.image_type}_original": result["original_base64"],
+            f"cow_{request.image_type}_processed": result.get("enhanced_base64") or result.get("enhanced_original_base64"),
+            f"cow_{request.image_type}_processing_notes": result["processing_notes"],
+            f"cow_{request.image_type}_processed_at": datetime.utcnow()
+        }
+        
+        # Add nose-specific data
+        if request.image_type == "nose" and result.get("nose_zoomed_base64"):
+            image_data["cow_nose_zoomed"] = result["nose_zoomed_base64"]
+            image_data["cow_nose_zoom_coordinates"] = result.get("zoom_coordinates")
+        
+        # Update application with processed image data
+        await db.loan_applications.update_one(
+            {"_id": ObjectId(request.application_id)},
+            {"$set": image_data}
+        )
+        
+        return {
+            "success": True,
+            "message": f"Cow {request.image_type} image processed successfully",
+            "processed_data": result,
+            "application_id": request.application_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing image: {str(e)}"
+        )
+
+@router.post("/process-cow-face-manual-zoom", response_model=dict)
+async def process_cow_face_manual_zoom(
+    request: ManualZoomRequest,
+    current_user: User = Depends(require_operator)
+):
+    """
+    Process cow face image with manual nose zoom and pattern recognition
+    """
+    try:
+        db = await get_database()
+        
+        # Verify application exists and belongs to this operator
+        application = await db.loan_applications.find_one({
+            "_id": ObjectId(request.application_id),
+            "operator_id": ObjectId(current_user.id)
+        })
+        
+        if not application:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Loan application not found"
+            )
+        
+        # Process image with manual zoom
+        result = cow_nose_processor.process_cow_face_with_manual_zoom(
+            request.image_base64, 
+            request.zoom_coordinates
+        )
+        
+        if not result["success"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Image processing failed: {result.get('error', 'Unknown error')}"
+            )
+        
+        # Check for duplicate pattern
+        pattern_hash = result.get("pattern_hash")
+        is_duplicate = False
+        duplicate_application = None
+        
+        if pattern_hash:
+            # Search for existing applications with same pattern hash
+            existing_app = await db.loan_applications.find_one({
+                "nose_pattern_hash": pattern_hash,
+                "_id": {"$ne": ObjectId(request.application_id)}
+            })
+            
+            if existing_app:
+                is_duplicate = True
+                duplicate_application = str(existing_app.get("_id"))
+                # Get applicant name for the duplicate
+                duplicate_applicant = await db.applicants.find_one({
+                    "_id": existing_app.get("applicant_id")
+                })
+                if duplicate_applicant:
+                    result["duplicate_applicant_name"] = duplicate_applicant.get("name")
+        
+        # Store processed data in database
+        update_data = {
+            "cow_face_original": result["original_face_base64"],
+            "cow_face_enhanced": result["enhanced_face_base64"],
+            "cow_nose_area": result["nose_area_base64"],
+            "nose_zoom_coordinates": result["zoom_coordinates"],
+            "nose_pattern_features": result["pattern_features"],
+            "nose_pattern_hash": pattern_hash,
+            "nose_pattern_confidence": result["pattern_confidence"],
+            "nose_pattern_processed_at": datetime.utcnow(),
+            "is_duplicate_pattern": is_duplicate,
+            "duplicate_application_id": duplicate_application
+        }
+        
+        # Update application
+        await db.loan_applications.update_one(
+            {"_id": ObjectId(request.application_id)},
+            {"$set": update_data}
+        )
+        
+        return {
+            "success": True,
+            "message": "Cow face processed with nose pattern analysis",
+            "pattern_hash": pattern_hash,
+            "pattern_confidence": result["pattern_confidence"],
+            "is_duplicate": is_duplicate,
+            "duplicate_application_id": duplicate_application,
+            "duplicate_applicant_name": result.get("duplicate_applicant_name"),
+            "processed_data": result,
+            "application_id": request.application_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing cow face: {str(e)}"
+        )
+
+@router.post("/check-nose-pattern-duplicate", response_model=dict)
+async def check_nose_pattern_duplicate(
+    request: PatternCheckRequest,
+    current_user: User = Depends(require_operator)
+):
+    """
+    Check if a nose pattern already exists in the database
+    """
+    try:
+        db = await get_database()
+        
+        # Search for existing applications with same pattern hash
+        query = {"nose_pattern_hash": request.pattern_hash}
+        if request.application_id:
+            query["_id"] = {"$ne": ObjectId(request.application_id)}
+        
+        existing_app = await db.loan_applications.find_one(query)
+        
+        if existing_app:
+            # Get applicant details
+            applicant = await db.applicants.find_one({
+                "_id": existing_app.get("applicant_id")
+            })
+            
+            return {
+                "is_duplicate": True,
+                "existing_application_id": str(existing_app["_id"]),
+                "existing_application_number": existing_app.get("application_number"),
+                "existing_applicant_name": applicant.get("name") if applicant else "Unknown",
+                "existing_applicant_phone": applicant.get("phone") if applicant else "Unknown",
+                "pattern_confidence": existing_app.get("nose_pattern_confidence", 0),
+                "created_at": existing_app.get("created_at")
+            }
+        else:
+            return {
+                "is_duplicate": False,
+                "message": "No duplicate pattern found"
+            }
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error checking pattern duplicate: {str(e)}"
+        )
+
+@router.post("/verification-step", response_model=dict)
+async def save_verification_step(
+    request: VerificationStepRequest,
+    current_user: User = Depends(require_operator)
+):
+    """
+    Save verification step data with processed images
+    """
+    try:
+        db = await get_database()
+        
+        # Verify application exists and belongs to this operator
+        application = await db.loan_applications.find_one({
+            "_id": ObjectId(request.application_id),
+            "operator_id": ObjectId(current_user.id)
+        })
+        
+        if not application:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Loan application not found"
+            )
+        
+        # Process any images in the request
+        processed_images = {}
+        if request.images:
+            for image_type, image_base64 in request.images.items():
+                if image_base64 and image_type in ["cow_face_image", "cow_nose_image"]:
+                    # Determine processing type
+                    process_type = "face" if "face" in image_type else "nose"
+                    
+                    # Process the image
+                    if process_type == "face":
+                        # Simple face enhancement
+                        enhanced_face = cow_nose_processor._enhance_image_quality(
+                            Image.open(BytesIO(base64.b64decode(image_base64.split(',')[1] if ',' in image_base64 else image_base64)))
+                        )
+                        result = {
+                            "success": True,
+                            "original_base64": image_base64,
+                            "enhanced_base64": cow_nose_processor._pil_to_base64(enhanced_face),
+                            "processing_notes": "Face image enhanced"
+                        }
+                    else:
+                        # Simple nose enhancement  
+                        enhanced_nose = cow_nose_processor._enhance_image_quality(
+                            Image.open(BytesIO(base64.b64decode(image_base64.split(',')[1] if ',' in image_base64 else image_base64)))
+                        )
+                        result = {
+                            "success": True,
+                            "original_base64": image_base64,
+                            "enhanced_original_base64": cow_nose_processor._pil_to_base64(enhanced_nose),
+                            "processing_notes": "Nose image enhanced"
+                        }
+                    
+                    if result["success"]:
+                        processed_images[f"{image_type}_original"] = result["original_base64"]
+                        processed_images[f"{image_type}_processed"] = result.get("enhanced_base64") or result.get("enhanced_original_base64")
+                        processed_images[f"{image_type}_processing_notes"] = result["processing_notes"]
+                        
+                        # Add nose-specific data
+                        if process_type == "nose" and result.get("nose_zoomed_base64"):
+                            processed_images[f"{image_type}_zoomed"] = result["nose_zoomed_base64"]
+                            processed_images[f"{image_type}_zoom_coordinates"] = result.get("zoom_coordinates")
+        
+        # Combine step data with processed images
+        update_data = {
+            "verification_step_data": request.step_data,
+            "verification_updated_at": datetime.utcnow(),
+            **processed_images
+        }
+        
+        # Update application
+        await db.loan_applications.update_one(
+            {"_id": ObjectId(request.application_id)},
+            {"$set": update_data}
+        )
+        
+        return {
+            "success": True,
+            "message": "Verification step saved successfully",
+            "processed_images_count": len([k for k in processed_images.keys() if "processed" in k]),
+            "application_id": request.application_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error saving verification step: {str(e)}"
+        )
 
 @router.post("/loan-applications", response_model=dict)
 async def create_loan_application(
@@ -718,3 +1071,160 @@ async def complete_verification(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to complete verification: {str(e)}")
+
+# Weight Prediction Request Model
+class WeightPredictionRequest(BaseModel):
+    application_id: str
+    left_side_image: str
+    right_side_image: str
+    breed: Optional[str] = 'crossbred'
+    age_years: Optional[float] = 3.0
+    reference_length_cm: Optional[float] = None
+    prediction_mode: Optional[str] = 'both'  # 'manual', 'ai', or 'both'
+    manual_heart_girth: Optional[float] = None
+    manual_body_length: Optional[float] = None
+
+@router.post("/predict-cow-weight")
+async def predict_cow_weight(
+    request: WeightPredictionRequest,
+    current_user: User = Depends(require_operator)
+):
+    """
+    Predict cow weight using side view images
+    """
+    try:
+        from ..common.cow_weight_predictor import CowWeightPredictor
+        
+        db = get_database()
+        
+        # Verify application exists and belongs to current operator's context
+        application = await db.loan_applications.find_one(
+            {"_id": ObjectId(request.application_id)}
+        )
+        
+        if not application:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Application not found"
+            )
+        
+        # Initialize weight predictor
+        predictor = CowWeightPredictor()
+        
+        # For manual mode with provided measurements, use direct calculation
+        if request.prediction_mode == 'manual' and request.manual_heart_girth and request.manual_body_length:
+            # Use provided manual measurements directly
+            manual_result = predictor.predict_weight_manual_mode(
+                heart_girth_cm=request.manual_heart_girth,
+                body_length_cm=request.manual_body_length,
+                breed=request.breed
+            )
+            
+            result = {
+                'success': True,
+                'weight_predictions': manual_result,
+                'measurements': {
+                    'heart_girth_cm': request.manual_heart_girth,
+                    'body_length_cm': request.manual_body_length,
+                    'manual_input': True
+                },
+                'processing_details': {
+                    'method': 'manual_input',
+                    'confidence': 'high'
+                },
+                'mode': 'manual'
+            }
+        else:
+            # Process both side images for measurement extraction
+            result = predictor.process_side_images(
+                left_image_b64=request.left_side_image,
+                right_image_b64=request.right_side_image,
+                breed=request.breed,
+                age_years=request.age_years,
+                reference_length_cm=request.reference_length_cm,
+                prediction_mode=request.prediction_mode
+            )
+            
+            # If manual measurements provided in 'both' mode, override extracted measurements
+            if request.prediction_mode == 'both' and request.manual_heart_girth and request.manual_body_length:
+                # Use manual inputs for manual calculation part
+                manual_result = predictor.predict_weight_manual_mode(
+                    heart_girth_cm=request.manual_heart_girth,
+                    body_length_cm=request.manual_body_length,
+                    breed=request.breed
+                )
+                
+                # Update the results with manual calculation
+                if result.get('success'):
+                    result['weight_predictions'].update(manual_result)
+                    result['measurements'].update({
+                        'heart_girth_cm': request.manual_heart_girth,
+                        'body_length_cm': request.manual_body_length,
+                        'manual_override': True
+                    })
+        
+        if result['success']:
+            # Store weight prediction data in application
+            weight_data = {
+                'predicted_weight_kg': result['weight_predictions'].get('predicted_weight_kg'),
+                'weight_range_min': result['weight_predictions'].get('weight_range_min'),
+                'weight_range_max': result['weight_predictions'].get('weight_range_max'),
+                'confidence_score': result['weight_predictions'].get('confidence_score'),
+                'measurement_method': result['processing_details'].get('method'),
+                'measurements': result['measurements'],
+                'prediction_timestamp': datetime.utcnow(),
+                'predicted_by': str(current_user.id)
+            }
+            
+            # Generate visualizations if possible
+            if result.get('left_side_results', {}).get('success'):
+                try:
+                    left_viz = predictor.generate_measurement_visualization(
+                        request.left_side_image, 
+                        result['left_side_results']['measurements']
+                    )
+                    result['visualization_left'] = left_viz
+                except Exception as e:
+                    print(f"Warning: Could not generate left visualization: {e}")
+            
+            if result.get('right_side_results', {}).get('success'):
+                try:
+                    right_viz = predictor.generate_measurement_visualization(
+                        request.right_side_image, 
+                        result['right_side_results']['measurements']
+                    )
+                    result['visualization_right'] = right_viz
+                except Exception as e:
+                    print(f"Warning: Could not generate right visualization: {e}")
+            
+            # Update application with weight prediction
+            await db.loan_applications.update_one(
+                {"_id": ObjectId(request.application_id)},
+                {
+                    "$set": {
+                        "weight_prediction": weight_data,
+                        "side_images": {
+                            "left_side": request.left_side_image,
+                            "right_side": request.right_side_image
+                        }
+                    }
+                }
+            )
+            
+            return {
+                "success": True,
+                "message": "Weight prediction completed successfully",
+                **result
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.get('error', 'Weight prediction failed'),
+                "details": result
+            }
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Weight prediction failed: {str(e)}"
+        )

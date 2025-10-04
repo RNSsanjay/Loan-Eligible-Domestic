@@ -64,6 +64,19 @@ async def login(credentials: HTTPBasicCredentials = Depends(security)):
 
 @router.post("/set-password")
 async def set_password(email: str, password: str):
+    # Validate password length to prevent bcrypt issues
+    if len(password) > 200:  # Conservative limit
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password is too long. Maximum 200 characters allowed."
+        )
+    
+    if len(password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 6 characters long."
+        )
+    
     db = await get_database()
     
     user = await db.users.find_one({"email": email})
@@ -95,10 +108,24 @@ async def set_password(email: str, password: str):
 
 @router.get("/me", response_model=dict)
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
-    # Convert the User object to a dictionary with proper serialization
-    user_dict = current_user.model_dump()
-    user_dict['id'] = str(current_user.id)
-    return serialize_user_document(user_dict)
+    """Fast user info endpoint with minimal processing"""
+    try:
+        # Quick response with essential user data
+        user_dict = {
+            'id': str(current_user.id),
+            'email': current_user.email,
+            'name': current_user.name,
+            'role': current_user.role,
+            'is_active': current_user.is_active,
+            'phone': getattr(current_user, 'phone', None),
+            'profile_image': getattr(current_user, 'profile_image', None)
+        }
+        return user_dict
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving user info: {str(e)}"
+        )
 
 @router.get("/check-first-login")
 async def check_first_login(email: str):
@@ -202,6 +229,19 @@ async def change_password(
     current_user: User = Depends(get_current_active_user)
 ):
     """Change user password"""
+    # Validate new password length to prevent bcrypt issues
+    if len(request.newPassword) > 200:  # Conservative limit
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password is too long. Maximum 200 characters allowed."
+        )
+    
+    if len(request.newPassword) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be at least 6 characters long."
+        )
+    
     db = await get_database()
     
     try:
