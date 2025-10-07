@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card } from '../../common/Card';
 import { Input } from '../../common/Input';
 import { Button } from '../../common/Button';
+import { WeightPredictionComponent } from './WeightPredictionComponent';
 
 interface AnimalVerificationProps {
   application: any;
@@ -25,6 +26,7 @@ export const AnimalVerification: React.FC<AnimalVerificationProps> = ({
     animal_condition_satisfactory: data.animal_condition_satisfactory || false,
     animal_notes: data.animal_notes || '',
     assessed_market_value: data.assessed_market_value || application.animal?.market_value || 0,
+    weight_prediction_data: data.weight_prediction_data || null,
     ...data
   });
 
@@ -66,6 +68,13 @@ export const AnimalVerification: React.FC<AnimalVerificationProps> = ({
     }
   };
 
+  const handleWeightPredicted = (weightData: any) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      weight_prediction_data: weightData
+    }));
+  };
+
   const animal = application.animal;
 
   return (
@@ -82,7 +91,7 @@ export const AnimalVerification: React.FC<AnimalVerificationProps> = ({
           {/* Animal Information */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Animal Details</h3>
-            
+
             <div className="space-y-4">
               <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                 <div className="flex items-center mb-2">
@@ -130,21 +139,19 @@ export const AnimalVerification: React.FC<AnimalVerificationProps> = ({
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-purple-600">Health:</span>
-                    <span className={`font-medium px-2 py-1 rounded text-xs ${
-                      animal?.health_status?.toLowerCase() === 'healthy' 
-                        ? 'bg-green-100 text-green-800' 
+                    <span className={`font-medium px-2 py-1 rounded text-xs ${animal?.health_status?.toLowerCase() === 'healthy'
+                        ? 'bg-green-100 text-green-800'
                         : 'bg-yellow-100 text-yellow-800'
-                    }`}>
+                      }`}>
                       {animal?.health_status || 'N/A'}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-purple-600">Vaccination:</span>
-                    <span className={`font-medium px-2 py-1 rounded text-xs ${
-                      animal?.vaccination_status?.toLowerCase() === 'complete' 
-                        ? 'bg-green-100 text-green-800' 
+                    <span className={`font-medium px-2 py-1 rounded text-xs ${animal?.vaccination_status?.toLowerCase() === 'complete'
+                        ? 'bg-green-100 text-green-800'
                         : 'bg-red-100 text-red-800'
-                    }`}>
+                      }`}>
                       {animal?.vaccination_status || 'N/A'}
                     </span>
                   </div>
@@ -182,7 +189,7 @@ export const AnimalVerification: React.FC<AnimalVerificationProps> = ({
           {/* Verification Checklist */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Animal Verification Checklist</h3>
-            
+
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <input
@@ -303,10 +310,9 @@ export const AnimalVerification: React.FC<AnimalVerificationProps> = ({
                     </div>
                     <div className="flex justify-between border-t pt-1">
                       <span>Difference:</span>
-                      <span className={`font-medium ${
-                        formData.assessed_market_value > animal.market_value ? 'text-green-600' : 
-                        formData.assessed_market_value < animal.market_value ? 'text-red-600' : 'text-gray-600'
-                      }`}>
+                      <span className={`font-medium ${formData.assessed_market_value > animal.market_value ? 'text-green-600' :
+                          formData.assessed_market_value < animal.market_value ? 'text-red-600' : 'text-gray-600'
+                        }`}>
                         {formData.assessed_market_value > animal.market_value ? '+' : ''}
                         ₹{(formData.assessed_market_value - animal.market_value).toLocaleString('en-IN')}
                       </span>
@@ -316,6 +322,14 @@ export const AnimalVerification: React.FC<AnimalVerificationProps> = ({
               )}
             </div>
           </div>
+        </div>
+
+        {/* Weight Prediction Section */}
+        <div className="mt-8">
+          <WeightPredictionComponent
+            application={application}
+            onWeightPredicted={handleWeightPredicted}
+          />
         </div>
 
         {/* Actions */}

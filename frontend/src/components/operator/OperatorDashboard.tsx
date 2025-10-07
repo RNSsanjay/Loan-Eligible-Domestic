@@ -6,7 +6,6 @@ import { CreateAnimal } from '../operator/CreateAnimal';
 import { CreateLoanApplication } from '../operator/CreateLoanApplication';
 import { LoanApplicationsList } from '../operator/LoanApplicationsList';
 import { VerificationStepper } from '../operator/verify/VerificationStepper';
-import { WeightPredictionTest } from '../operator/WeightPredictionTest';
 import { FarmStoryAnimation } from '../common/FarmStoryAnimation';
 
 export const OperatorDashboard: React.FC = () => {
@@ -27,7 +26,7 @@ export const OperatorDashboard: React.FC = () => {
             {/* <h1 className="text-xl font-bold text-gray-900">Operator Portal</h1>
             <p className="text-sm text-gray-600">Loan Management System</p> */}
           </div>
-          
+
           <nav className="mt-6">
             <div className="px-4">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
@@ -74,18 +73,10 @@ export const OperatorDashboard: React.FC = () => {
                     View Applications
                   </Link>
                 </li>
-                <li>
-                  <Link
-                    to="/operator/weight-test"
-                    className="block px-4 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-700"
-                  >
-                    Weight Prediction Test
-                  </Link>
-                </li>
               </ul>
             </div>
           </nav>
-          
+
           {/* Farm Story Animation at the bottom */}
           <div className="absolute bottom-4 left-0 right-0">
             <FarmStoryAnimation />
@@ -101,7 +92,6 @@ export const OperatorDashboard: React.FC = () => {
             <Route path="/create-loan" element={<CreateLoanApplication />} />
             <Route path="/applications" element={<LoanApplicationsList />} />
             <Route path="/verification/:id" element={<VerificationStepper />} />
-            <Route path="/weight-test" element={<WeightPredictionTest />} />
           </Routes>
         </div>
       </div>
@@ -113,7 +103,7 @@ const OperatorHome: React.FC = () => {
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Operator Dashboard</h2>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">

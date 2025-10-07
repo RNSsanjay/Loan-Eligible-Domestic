@@ -14,6 +14,10 @@ import google.generativeai as genai
 import os
 from typing import Dict, List, Tuple, Optional
 import logging
+from .image_utils import (
+    base64_to_cv2, cv2_to_base64, base64_to_pil, pil_to_base64,
+    enhance_image_quality, validate_base64_image
+)
 
 logger = logging.getLogger(__name__)
 
@@ -212,8 +216,167 @@ class CowWeightPredictor:
             logger.error(f"Error converting measurements: {e}")
             return pixel_measurements
     
-    def predict_weight_manual_mode(self, heart_girth_cm: float, body_length_cm: float, 
-                                 breed: str = 'default') -> Dict[str, float]:
+    def predict_weight_unified(self, left_side_image: str, right_side_image: str, 
+                             breed: str = "crossbred", age_years: int = 3,
+                             prediction_mode: str = "manual",
+                             manual_heart_girth: Optional[float] = None,
+                             manual_body_length: Optional[float] = None) -> Dict:
+        """
+        Unified weight prediction method with proper base64 image handling
+        
+        Args:
+            left_side_image: Base64 encoded left side image
+            right_side_image: Base64 encoded right side image
+            breed: Cow breed for breed-specific calculations
+            age_years: Age of the cow in years
+            prediction_mode: 'manual', 'ai', or 'visual'
+            manual_heart_girth: Manual heart girth measurement in cm
+            manual_body_length: Manual body length measurement in cm
+        """
+        try:
+            # Validate inputs
+            if not validate_base64_image(left_side_image):
+                return {
+                    "success": False,
+                    "error": "Invalid left side image format",
+                    "predicted_weight": None
+                }
+            
+            if not validate_base64_image(right_side_image):
+                return {
+                    "success": False,
+                    "error": "Invalid right side image format", 
+                    "predicted_weight": None
+                }
+            
+            # Convert to OpenCV format for processing
+            left_cv_image = base64_to_cv2(left_side_image)
+            right_cv_image = base64_to_cv2(right_side_image)
+            
+            if left_cv_image is None or right_cv_image is None:
+                return {
+                    "success": False,
+                    "error": "Failed to process input images",
+                    "predicted_weight": None
+                }
+            
+            # Enhance image quality
+            left_enhanced = self.enhance_image_quality(left_cv_image)
+            right_enhanced = self.enhance_image_quality(right_cv_image)
+            
+            # Convert enhanced images back to base64
+            left_enhanced_b64 = cv2_to_base64(left_enhanced)
+            right_enhanced_b64 = cv2_to_base64(right_enhanced)
+            
+            # Get breed factors
+            breed_info = self.breed_factors.get(breed.lower(), self.breed_factors['default'])
+            
+            result = {
+                "success": True,
+                "prediction_mode": prediction_mode,
+                "breed": breed,
+                "age_years": age_years,
+                "breed_factor": breed_info['base_factor'],
+                "original_left_image": left_side_image,
+                "original_right_image": right_side_image,
+                "enhanced_left_image": left_enhanced_b64,
+                "enhanced_right_image": right_enhanced_b64,
+                "processing_notes": []
+            }
+            
+            if prediction_mode == "manual":
+                if manual_heart_girth is None or manual_body_length is None:
+                    return {
+                        "success": False,
+                        "error": "Manual measurements required for manual mode",
+                        "predicted_weight": None
+                    }
+                weight_result = self.predict_weight_manual_mode(
+                    manual_heart_girth, manual_body_length, breed
+                )
+                result.update(weight_result)
+                result["predicted_weight"] = weight_result.get("manual_weight_kg", 0)
+                result["confidence"] = weight_result.get("confidence_score", 0)
+                result["method"] = "manual_calculation"
+                
+            elif prediction_mode == "ai":
+                # Prepare measurements for AI
+                measurements = {
+                    "visual_analysis": "Side view images provided",
+                    "breed": breed,
+                    "age_years": age_years
+                }
+                weight_result = self.predict_weight_ai_mode(
+                    measurements, [left_enhanced_b64, right_enhanced_b64], breed, age_years
+                )
+                result.update(weight_result)
+                result["predicted_weight"] = weight_result.get("ai_weight_kg", 0)
+                result["confidence"] = weight_result.get("ai_confidence", 0) / 100.0
+                result["method"] = "ai_prediction"
+                
+            elif prediction_mode == "visual":
+                # Try to extract measurements from images
+                measurements = self._extract_visual_measurements(left_enhanced, right_enhanced)
+                if measurements:
+                    weight_result = self.predict_weight_manual_mode(
+                        measurements.get("heart_girth_cm", 180),
+                        measurements.get("body_length_cm", 150),
+                        breed
+                    )
+                    result.update(weight_result)
+                    result["predicted_weight"] = weight_result.get("manual_weight_kg", 0)
+                    result["confidence"] = 0.6  # Lower confidence for visual estimation
+                    result["method"] = "visual_estimation"
+                    result["extracted_measurements"] = measurements
+                else:
+                    return {
+                        "success": False,
+                        "error": "Could not extract measurements from images",
+                        "predicted_weight": None
+                    }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Invalid prediction mode: {prediction_mode}",
+                    "predicted_weight": None
+                }
+            
+            # Add processing notes
+            result["processing_notes"].append(f"Weight predicted using {prediction_mode} mode")
+            result["processing_notes"].append(f"Breed factor applied: {breed_info['base_factor']}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in unified weight prediction: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "predicted_weight": None
+            }
+    
+    def _extract_visual_measurements(self, left_image: np.ndarray, right_image: np.ndarray) -> Optional[Dict]:
+        """
+        Extract measurements from images using computer vision (simplified implementation)
+        """
+        try:
+            # This is a simplified implementation
+            # In practice, you would use more sophisticated CV techniques
+            height, width = left_image.shape[:2]
+            
+            # Estimate measurements based on image dimensions (placeholder logic)
+            estimated_heart_girth = 160 + (width / 10)  # Rough estimation
+            estimated_body_length = 140 + (height / 8)   # Rough estimation
+            
+            return {
+                "heart_girth_cm": max(150, min(estimated_heart_girth, 220)),
+                "body_length_cm": max(130, min(estimated_body_length, 180)),
+                "estimation_method": "visual_approximation",
+                "confidence": 0.5
+            }
+        except Exception as e:
+            logger.error(f"Error extracting visual measurements: {e}")
+            return None
         """
         Manual weight prediction using heart girth formula:
         Weight = (Heart Girth * Heart Girth * Body Length) / 300

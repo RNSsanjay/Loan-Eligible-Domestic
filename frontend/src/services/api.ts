@@ -26,19 +26,19 @@ export const authAPI = {
         password: credentials.password,
       },
     }).then(res => res.data),
-    
+
   setPassword: (data: SetPasswordData) =>
     api.post('/auth/set-password', null, { params: data }).then(res => res.data),
-    
+
   checkFirstLogin: (email: string) =>
     api.get('/auth/check-first-login', { params: { email } }).then(res => res.data),
-    
+
   getProfile: () =>
     api.get('/auth/me').then(res => res.data),
-    
+
   updateProfile: (data: any) =>
     api.put('/auth/profile', data).then(res => res.data),
-    
+
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     api.put('/auth/change-password', data).then(res => res.data),
 };
@@ -48,67 +48,68 @@ export const operatorAPI = {
   // Applicants
   createApplicant: (data: any) =>
     api.post('/operator/applicants', data).then(res => res.data),
-    
+
   getApplicants: () =>
     api.get('/operator/applicants').then(res => res.data),
-    
+
   getApplicant: (id: string) =>
     api.get(`/operator/applicants/${id}`).then(res => res.data),
-    
+
   // Animals
   createAnimal: (data: any) =>
     api.post('/operator/animals', data).then(res => res.data),
-    
+
   getAnimals: () =>
     api.get('/operator/animals').then(res => res.data),
-    
+
   // Image Processing
   processCowImage: (data: { image_base64: string; image_type: 'face' | 'nose'; application_id: string }) =>
     api.post('/operator/process-cow-image', data).then(res => res.data),
-    
+
   processCowFaceWithManualZoom: (data: { image_base64: string; zoom_coordinates: any; application_id: string }) =>
     api.post('/operator/process-cow-face-manual-zoom', data).then(res => res.data),
-    
+
   checkNosePatternDuplicate: (data: { pattern_hash: string; application_id?: string }) =>
     api.post('/operator/check-nose-pattern-duplicate', data).then(res => res.data),
-    
+
   // Predict cow weight from side images
-  predictCowWeight: (data: { 
-    application_id: string; 
-    left_side_image: string; 
-    right_side_image: string; 
-    breed?: string; 
-    age_years?: number; 
-    reference_length_cm?: number;
-    prediction_mode?: 'manual' | 'ai' | 'both';
+  predictCowWeight: (data: {
+    application_id: string;
+    left_side_image: string;
+    right_side_image: string;
+    breed?: string;
+    age_years?: number;
+    prediction_mode?: 'manual' | 'ai' | 'visual';
+    manual_heart_girth?: number;
+    manual_body_length?: number;
   }) =>
     api.post('/operator/predict-cow-weight', data).then(res => res.data),
-    
+
   saveVerificationStep: (data: { application_id: string; step_data: any; images?: any }) =>
     api.post('/operator/verification-step', data).then(res => res.data),
-    
+
   // Loan Applications
   createLoanApplication: (data: any) =>
     api.post('/operator/loan-applications', data).then(res => res.data),
-    
+
   getLoanApplications: () =>
     api.get('/operator/loan-applications').then(res => res.data),
-    
+
   verifyLoanApplication: (id: string, data: any) =>
     api.put(`/operator/loan-applications/${id}/verify`, data).then(res => res.data),
-    
+
   // Get single loan application
   getLoanApplicationById: (id: string) =>
     api.get(`/operator/loan-applications/${id}`).then(res => res.data),
-    
+
   // Send verification step email
   sendVerificationStepEmail: (id: string, step: string, data: any) =>
     api.post(`/operator/loan-applications/${id}/verification-email`, { step, ...data }).then(res => res.data),
-    
+
   // Complete verification process
   completeVerification: (id: string, data: any) =>
     api.put(`/operator/loan-applications/${id}/complete-verification`, data).then(res => res.data),
-    
+
   // Delete loan application
   deleteLoanApplication: (id: string) =>
     api.delete(`/operator/loan-applications/${id}`).then(res => res.data),
@@ -119,37 +120,37 @@ export const managerAPI = {
   // Operators
   createOperator: (data: any) =>
     api.post('/manager/operators', data).then(res => res.data),
-    
+
   getOperators: () =>
     api.get('/manager/operators').then(res => res.data),
-    
+
   getOperator: (id: string) =>
     api.get(`/manager/operators/${id}`).then(res => res.data),
-    
+
   updateOperator: (id: string, data: any) =>
     api.put(`/manager/operators/${id}`, data).then(res => res.data),
-    
+
   deleteOperator: (id: string) =>
     api.delete(`/manager/operators/${id}`).then(res => res.data),
-    
+
   // Loan Applications
   getLoanApplications: () =>
     api.get('/manager/loan-applications').then(res => res.data),
-    
+
   approveLoanApplication: (id: string) =>
     api.put(`/manager/loan-applications/${id}/approve`).then(res => res.data),
-    
+
   rejectLoanApplication: (id: string, reason: string) =>
     api.put(`/manager/loan-applications/${id}/reject`, null, { params: { reason } }).then(res => res.data),
-    
+
   // Dashboard
   getDashboardStats: () =>
     api.get('/manager/dashboard/stats').then(res => res.data),
-    
+
   // Reports
   getOperatorPerformanceReport: () =>
     api.get('/manager/reports/operator-performance').then(res => res.data),
-    
+
   getMonthlyAnalytics: (months: number = 6) =>
     api.get('/manager/reports/monthly-analytics', { params: { months } }).then(res => res.data),
 };
@@ -159,46 +160,46 @@ export const adminAPI = {
   // Managers
   createManager: (data: any) =>
     api.post('/admin/managers', data).then(res => res.data),
-    
+
   getManagers: () =>
     api.get('/admin/managers').then(res => res.data),
-    
+
   getManager: (id: string) =>
     api.get(`/admin/managers/${id}`).then(res => res.data),
-    
+
   updateManager: (id: string, data: any) =>
     api.put(`/admin/managers/${id}`, data).then(res => res.data),
-    
+
   deleteManager: (id: string) =>
     api.delete(`/admin/managers/${id}`).then(res => res.data),
-    
+
   getManagerOperators: (id: string) =>
     api.get(`/admin/managers/${id}/operators`).then(res => res.data),
-    
+
   getManagerStats: (id: string) =>
     api.get(`/admin/managers/${id}/stats`).then(res => res.data),
-    
+
   // Dashboard
   getDashboardOverview: () =>
     api.get('/admin/dashboard/overview').then(res => res.data),
-    
+
   // System Analytics
   getSystemStats: () =>
     api.get('/admin/analytics/stats').then(res => res.data),
-    
+
   getRecentActivity: () =>
     api.get('/admin/analytics/activity').then(res => res.data),
-    
+
   // System Reports
   getLoanApplicationsReport: (params?: any) =>
     api.get('/admin/reports/loan-applications', { params }).then(res => res.data),
-    
+
   getManagersPerformanceReport: () =>
     api.get('/admin/reports/managers-performance').then(res => res.data),
-    
+
   getFinancialSummaryReport: (params?: any) =>
     api.get('/admin/reports/financial-summary', { params }).then(res => res.data),
-    
+
   // Initial Admin
   createInitialAdmin: (data: any) =>
     api.post('/admin/create-initial-admin', data).then(res => res.data),

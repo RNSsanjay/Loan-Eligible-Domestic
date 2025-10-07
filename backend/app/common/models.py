@@ -128,13 +128,23 @@ class AnimalBase(BaseModel):
     health_status: str
     vaccination_status: str
     market_value: float
-
+    # Image fields for base64 storage
+    front_image_base64: Optional[str] = None
+    side_image_base64: Optional[str] = None
+    back_image_base64: Optional[str] = None
+    
 class AnimalCreate(AnimalBase):
     pass
 
 class Animal(AnimalBase):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    # Weight prediction data
+    predicted_weight: Optional[float] = None
+    weight_prediction_confidence: Optional[float] = None
+    weight_prediction_method: Optional[str] = None  # 'manual', 'ai', 'visual'
+    heart_girth_measurement: Optional[float] = None
+    body_length_measurement: Optional[float] = None
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -174,6 +184,27 @@ class LoanApplication(LoanApplicationBase):
     approved_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Cow face and nose images (base64)
+    cow_face_original: Optional[str] = None
+    cow_face_enhanced: Optional[str] = None
+    cow_nose_area: Optional[str] = None
+    cow_nose_zoomed: Optional[str] = None
+    nose_zoom_coordinates: Optional[dict] = None
+    nose_pattern_features: Optional[List[float]] = None
+    nose_pattern_hash: Optional[str] = None
+    nose_pattern_confidence: Optional[float] = None
+    nose_pattern_processed_at: Optional[datetime] = None
+    is_duplicate_pattern: Optional[bool] = None
+    duplicate_application_id: Optional[str] = None
+    
+    # Weight prediction data
+    weight_prediction_images: Optional[dict] = None  # {'left_side': base64, 'right_side': base64}
+    predicted_weight: Optional[float] = None
+    weight_prediction_confidence: Optional[float] = None
+    weight_prediction_method: Optional[str] = None
+    manual_measurements: Optional[dict] = None  # {'heart_girth': float, 'body_length': float}
+    weight_prediction_processed_at: Optional[datetime] = None
 
     model_config = ConfigDict(
         populate_by_name=True,

@@ -17,6 +17,14 @@ from ..common.auth import get_current_active_user
 from ..common.database import get_database
 from ..common.serializers import serialize_objectid
 from ..common.image_processor import cow_nose_processor
+from ..common.cow_weight_predictor import CowWeightPredictor
+from ..common.image_utils import (
+    validate_base64_image, enhance_image_quality, compress_image,
+    get_image_info, resize_image
+)
+
+# Initialize weight predictor
+weight_predictor = CowWeightPredictor()
 
 # Request models for image processing
 class ImageProcessRequest(BaseModel):
@@ -37,6 +45,16 @@ class VerificationStepRequest(BaseModel):
     application_id: str
     step_data: dict
     images: Optional[dict] = None
+
+class WeightPredictionRequest(BaseModel):
+    application_id: str
+    left_side_image: str
+    right_side_image: str
+    breed: str = "crossbred"
+    age_years: int = 3
+    prediction_mode: str = "manual"  # 'manual', 'ai', 'visual'
+    manual_heart_girth: Optional[float] = None
+    manual_body_length: Optional[float] = None
 
 router = APIRouter()
 
@@ -378,43 +396,26 @@ async def save_verification_step(
         processed_images = {}
         if request.images:
             for image_type, image_base64 in request.images.items():
-                if image_base64 and image_type in ["cow_face_image", "cow_nose_image"]:
-                    # Determine processing type
-                    process_type = "face" if "face" in image_type else "nose"
-                    
-                    # Process the image
-                    if process_type == "face":
-                        # Simple face enhancement
-                        enhanced_face = cow_nose_processor._enhance_image_quality(
-                            Image.open(BytesIO(base64.b64decode(image_base64.split(',')[1] if ',' in image_base64 else image_base64)))
-                        )
-                        result = {
-                            "success": True,
-                            "original_base64": image_base64,
-                            "enhanced_base64": cow_nose_processor._pil_to_base64(enhanced_face),
-                            "processing_notes": "Face image enhanced"
-                        }
-                    else:
-                        # Simple nose enhancement  
-                        enhanced_nose = cow_nose_processor._enhance_image_quality(
-                            Image.open(BytesIO(base64.b64decode(image_base64.split(',')[1] if ',' in image_base64 else image_base64)))
-                        )
-                        result = {
-                            "success": True,
-                            "original_base64": image_base64,
-                            "enhanced_original_base64": cow_nose_processor._pil_to_base64(enhanced_nose),
-                            "processing_notes": "Nose image enhanced"
-                        }
-                    
-                    if result["success"]:
-                        processed_images[f"{image_type}_original"] = result["original_base64"]
-                        processed_images[f"{image_type}_processed"] = result.get("enhanced_base64") or result.get("enhanced_original_base64")
-                        processed_images[f"{image_type}_processing_notes"] = result["processing_notes"]
+                if image_base64 and validate_base64_image(image_base64):
+                    try:
+                        # Enhance and compress the image
+                        enhanced_image = enhance_image_quality(image_base64)
+                        compressed_image = compress_image(enhanced_image, 300)  # Max 300KB
                         
-                        # Add nose-specific data
-                        if process_type == "nose" and result.get("nose_zoomed_base64"):
-                            processed_images[f"{image_type}_zoomed"] = result["nose_zoomed_base64"]
-                            processed_images[f"{image_type}_zoom_coordinates"] = result.get("zoom_coordinates")
+                        # Store both original and processed versions
+                        processed_images[f"{image_type}_original"] = image_base64
+                        processed_images[f"{image_type}_enhanced"] = enhanced_image
+                        processed_images[f"{image_type}_compressed"] = compressed_image
+                        processed_images[f"{image_type}_processed_at"] = datetime.utcnow()
+                        
+                        # Get image info for logging
+                        image_info = get_image_info(compressed_image)
+                        processed_images[f"{image_type}_info"] = image_info
+                        
+                    except Exception as e:
+                        # Store original if processing fails
+                        processed_images[f"{image_type}_original"] = image_base64
+                        processed_images[f"{image_type}_processing_error"] = str(e)
         
         # Combine step data with processed images
         update_data = {
@@ -1084,144 +1085,139 @@ class WeightPredictionRequest(BaseModel):
     manual_heart_girth: Optional[float] = None
     manual_body_length: Optional[float] = None
 
-@router.post("/predict-cow-weight")
+@router.post("/predict-cow-weight", response_model=dict)
 async def predict_cow_weight(
     request: WeightPredictionRequest,
     current_user: User = Depends(require_operator)
 ):
     """
-    Predict cow weight using side view images
+    Predict cow weight using side view images with improved base64 handling
     """
     try:
-        from ..common.cow_weight_predictor import CowWeightPredictor
+        db = await get_database()
         
-        db = get_database()
+        # Validate application_id format
+        try:
+            app_object_id = ObjectId(request.application_id)
+        except:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid application ID format"
+            )
         
-        # Verify application exists and belongs to current operator's context
-        application = await db.loan_applications.find_one(
-            {"_id": ObjectId(request.application_id)}
-        )
+        # Verify application exists and belongs to this operator
+        application = await db.loan_applications.find_one({
+            "_id": app_object_id,
+            "operator_id": ObjectId(current_user.id)
+        })
         
         if not application:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Application not found"
+                detail="Loan application not found"
             )
         
-        # Initialize weight predictor
-        predictor = CowWeightPredictor()
+        # Validate images
+        if not validate_base64_image(request.left_side_image):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid left side image format"
+            )
         
-        # For manual mode with provided measurements, use direct calculation
-        if request.prediction_mode == 'manual' and request.manual_heart_girth and request.manual_body_length:
-            # Use provided manual measurements directly
-            manual_result = predictor.predict_weight_manual_mode(
-                heart_girth_cm=request.manual_heart_girth,
-                body_length_cm=request.manual_body_length,
-                breed=request.breed
+        if not validate_base64_image(request.right_side_image):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid right side image format"
             )
-            
-            result = {
-                'success': True,
-                'weight_predictions': manual_result,
-                'measurements': {
-                    'heart_girth_cm': request.manual_heart_girth,
-                    'body_length_cm': request.manual_body_length,
-                    'manual_input': True
-                },
-                'processing_details': {
-                    'method': 'manual_input',
-                    'confidence': 'high'
-                },
-                'mode': 'manual'
-            }
-        else:
-            # Process both side images for measurement extraction
-            result = predictor.process_side_images(
-                left_image_b64=request.left_side_image,
-                right_image_b64=request.right_side_image,
-                breed=request.breed,
-                age_years=request.age_years,
-                reference_length_cm=request.reference_length_cm,
-                prediction_mode=request.prediction_mode
-            )
-            
-            # If manual measurements provided in 'both' mode, override extracted measurements
-            if request.prediction_mode == 'both' and request.manual_heart_girth and request.manual_body_length:
-                # Use manual inputs for manual calculation part
-                manual_result = predictor.predict_weight_manual_mode(
-                    heart_girth_cm=request.manual_heart_girth,
-                    body_length_cm=request.manual_body_length,
-                    breed=request.breed
-                )
-                
-                # Update the results with manual calculation
-                if result.get('success'):
-                    result['weight_predictions'].update(manual_result)
-                    result['measurements'].update({
-                        'heart_girth_cm': request.manual_heart_girth,
-                        'body_length_cm': request.manual_body_length,
-                        'manual_override': True
-                    })
         
-        if result['success']:
-            # Store weight prediction data in application
-            weight_data = {
-                'predicted_weight_kg': result['weight_predictions'].get('predicted_weight_kg'),
-                'weight_range_min': result['weight_predictions'].get('weight_range_min'),
-                'weight_range_max': result['weight_predictions'].get('weight_range_max'),
-                'confidence_score': result['weight_predictions'].get('confidence_score'),
-                'measurement_method': result['processing_details'].get('method'),
-                'measurements': result['measurements'],
-                'prediction_timestamp': datetime.utcnow(),
-                'predicted_by': str(current_user.id)
-            }
-            
-            # Generate visualizations if possible
-            if result.get('left_side_results', {}).get('success'):
-                try:
-                    left_viz = predictor.generate_measurement_visualization(
-                        request.left_side_image, 
-                        result['left_side_results']['measurements']
-                    )
-                    result['visualization_left'] = left_viz
-                except Exception as e:
-                    print(f"Warning: Could not generate left visualization: {e}")
-            
-            if result.get('right_side_results', {}).get('success'):
-                try:
-                    right_viz = predictor.generate_measurement_visualization(
-                        request.right_side_image, 
-                        result['right_side_results']['measurements']
-                    )
-                    result['visualization_right'] = right_viz
-                except Exception as e:
-                    print(f"Warning: Could not generate right visualization: {e}")
-            
-            # Update application with weight prediction
-            await db.loan_applications.update_one(
-                {"_id": ObjectId(request.application_id)},
-                {
-                    "$set": {
-                        "weight_prediction": weight_data,
-                        "side_images": {
-                            "left_side": request.left_side_image,
-                            "right_side": request.right_side_image
-                        }
-                    }
-                }
+        # Compress images if needed (max 500KB each)
+        left_compressed = compress_image(request.left_side_image, 500)
+        right_compressed = compress_image(request.right_side_image, 500)
+        
+        # Get image info for logging
+        left_info = get_image_info(left_compressed)
+        right_info = get_image_info(right_compressed)
+        
+        # Use unified weight prediction
+        prediction_result = weight_predictor.predict_weight_unified(
+            left_side_image=left_compressed,
+            right_side_image=right_compressed,
+            breed=request.breed,
+            age_years=request.age_years,
+            prediction_mode=request.prediction_mode,
+            manual_heart_girth=request.manual_heart_girth,
+            manual_body_length=request.manual_body_length
+        )
+        
+        if not prediction_result["success"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Weight prediction failed: {prediction_result.get('error')}"
             )
-            
-            return {
-                "success": True,
-                "message": "Weight prediction completed successfully",
-                **result
+        
+        # Store prediction data in application
+        weight_prediction_data = {
+            "weight_prediction_images": {
+                "left_side_original": request.left_side_image,
+                "right_side_original": request.right_side_image,
+                "left_side_enhanced": prediction_result.get("enhanced_left_image"),
+                "right_side_enhanced": prediction_result.get("enhanced_right_image")
+            },
+            "predicted_weight": prediction_result.get("predicted_weight"),
+            "weight_prediction_confidence": prediction_result.get("confidence"),
+            "weight_prediction_method": prediction_result.get("method"),
+            "manual_measurements": {
+                "heart_girth": request.manual_heart_girth,
+                "body_length": request.manual_body_length
+            } if request.manual_heart_girth and request.manual_body_length else None,
+            "weight_prediction_processed_at": datetime.utcnow(),
+            "prediction_breed": request.breed,
+            "prediction_age_years": request.age_years,
+            "prediction_mode": request.prediction_mode
+        }
+        
+        # Update application with weight prediction data
+        await db.loan_applications.update_one(
+            {"_id": ObjectId(request.application_id)},
+            {"$set": weight_prediction_data}
+        )
+        
+        # Also update the animal record if weight prediction is available
+        if prediction_result.get("predicted_weight"):
+            await db.animals.update_one(
+                {"_id": ObjectId(application["animal_id"])},
+                {"$set": {
+                    "predicted_weight": prediction_result["predicted_weight"],
+                    "weight_prediction_confidence": prediction_result.get("confidence"),
+                    "weight_prediction_method": prediction_result.get("method"),
+                    "heart_girth_measurement": request.manual_heart_girth,
+                    "body_length_measurement": request.manual_body_length
+                }}
+            )
+        
+        return {
+            "success": True,
+            "message": "Weight prediction completed successfully",
+            "application_id": request.application_id,
+            "prediction_result": prediction_result,
+            "image_info": {
+                "left_side": left_info,
+                "right_side": right_info
+            },
+            "storage_info": {
+                "images_stored": True,
+                "compression_applied": True,
+                "database_updated": True
             }
-        else:
-            return {
-                "success": False,
-                "error": result.get('error', 'Weight prediction failed'),
-                "details": result
-            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error predicting weight: {str(e)}"
+        )
             
     except Exception as e:
         raise HTTPException(
