@@ -3,6 +3,7 @@ import { Card } from '../../common/Card';
 import { Input } from '../../common/Input';
 import { Button } from '../../common/Button';
 import { WeightPredictionComponent } from './WeightPredictionComponent';
+import { AgeVerificationComponent } from './AgeVerificationComponent';
 
 interface AnimalVerificationProps {
   application: any;
@@ -27,6 +28,7 @@ export const AnimalVerification: React.FC<AnimalVerificationProps> = ({
     animal_notes: data.animal_notes || '',
     assessed_market_value: data.assessed_market_value || application.animal?.market_value || 0,
     weight_prediction_data: data.weight_prediction_data || null,
+    age_verification_data: data.age_verification_data || null,
     ...data
   });
 
@@ -72,6 +74,13 @@ export const AnimalVerification: React.FC<AnimalVerificationProps> = ({
     setFormData((prev: any) => ({
       ...prev,
       weight_prediction_data: weightData
+    }));
+  };
+
+  const handleAgeVerified = (ageData: any) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      age_verification_data: ageData
     }));
   };
 
@@ -140,8 +149,8 @@ export const AnimalVerification: React.FC<AnimalVerificationProps> = ({
                   <div className="flex justify-between">
                     <span className="text-purple-600">Health:</span>
                     <span className={`font-medium px-2 py-1 rounded text-xs ${animal?.health_status?.toLowerCase() === 'healthy'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-yellow-100 text-yellow-800'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-yellow-100 text-yellow-800'
                       }`}>
                       {animal?.health_status || 'N/A'}
                     </span>
@@ -149,8 +158,8 @@ export const AnimalVerification: React.FC<AnimalVerificationProps> = ({
                   <div className="flex justify-between">
                     <span className="text-purple-600">Vaccination:</span>
                     <span className={`font-medium px-2 py-1 rounded text-xs ${animal?.vaccination_status?.toLowerCase() === 'complete'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-red-100 text-red-800'
                       }`}>
                       {animal?.vaccination_status || 'N/A'}
                     </span>
@@ -311,7 +320,7 @@ export const AnimalVerification: React.FC<AnimalVerificationProps> = ({
                     <div className="flex justify-between border-t pt-1">
                       <span>Difference:</span>
                       <span className={`font-medium ${formData.assessed_market_value > animal.market_value ? 'text-green-600' :
-                          formData.assessed_market_value < animal.market_value ? 'text-red-600' : 'text-gray-600'
+                        formData.assessed_market_value < animal.market_value ? 'text-red-600' : 'text-gray-600'
                         }`}>
                         {formData.assessed_market_value > animal.market_value ? '+' : ''}
                         ₹{(formData.assessed_market_value - animal.market_value).toLocaleString('en-IN')}
@@ -329,6 +338,14 @@ export const AnimalVerification: React.FC<AnimalVerificationProps> = ({
           <WeightPredictionComponent
             application={application}
             onWeightPredicted={handleWeightPredicted}
+          />
+        </div>
+
+        {/* Age Verification Section */}
+        <div className="mt-8">
+          <AgeVerificationComponent
+            application={application}
+            onAgeVerified={handleAgeVerified}
           />
         </div>
 

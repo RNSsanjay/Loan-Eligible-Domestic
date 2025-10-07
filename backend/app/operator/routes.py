@@ -1164,6 +1164,7 @@ async def predict_cow_weight(
                 "right_side_enhanced": prediction_result.get("enhanced_right_image")
             },
             "predicted_weight": prediction_result.get("predicted_weight"),
+            "predicted_age": prediction_result.get("predicted_age"),
             "weight_prediction_confidence": prediction_result.get("confidence"),
             "weight_prediction_method": prediction_result.get("method"),
             "manual_measurements": {
@@ -1188,6 +1189,7 @@ async def predict_cow_weight(
                 {"_id": ObjectId(application["animal_id"])},
                 {"$set": {
                     "predicted_weight": prediction_result["predicted_weight"],
+                    "predicted_age": prediction_result.get("predicted_age"),
                     "weight_prediction_confidence": prediction_result.get("confidence"),
                     "weight_prediction_method": prediction_result.get("method"),
                     "heart_girth_measurement": request.manual_heart_girth,

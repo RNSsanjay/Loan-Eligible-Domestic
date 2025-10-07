@@ -130,6 +130,7 @@ export const WeightPredictionTest: React.FC = () => {
                   <h4 className="font-medium text-gray-800 mb-2">Prediction Summary</h4>
                   <div className="space-y-1 text-sm">
                     <p><span className="font-medium">Weight:</span> {result.prediction_result.predicted_weight?.toFixed(1)} kg</p>
+                    <p><span className="font-medium">Age:</span> {result.prediction_result.predicted_age?.toFixed(1)} years</p>
                     <p><span className="font-medium">Confidence:</span> {(result.prediction_result.confidence * 100)?.toFixed(1)}%</p>
                     <p><span className="font-medium">Method:</span> {result.prediction_result.method}</p>
                     <p><span className="font-medium">Breed:</span> {result.prediction_result.breed}</p>

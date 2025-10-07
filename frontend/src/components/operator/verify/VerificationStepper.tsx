@@ -108,19 +108,19 @@ export const VerificationStepper: React.FC = () => {
       setLoading(true);
       setError(null);
       const response = await operatorAPI.getLoanApplicationById(id!);
-      
+
       // Ensure the response has the expected structure
       if (!response || !response.id) {
         throw new Error('Invalid application data received');
       }
-      
+
       // Handle the case where applicant or animal might be arrays or objects
       const processedApplication = {
         ...response,
         applicant: Array.isArray(response.applicant) ? response.applicant[0] : response.applicant,
         animal: Array.isArray(response.animal) ? response.animal[0] : response.animal
       };
-      
+
       // Validate that we have the necessary data
       if (!processedApplication.applicant) {
         throw new Error('Application missing applicant information');
@@ -128,8 +128,22 @@ export const VerificationStepper: React.FC = () => {
       if (!processedApplication.animal) {
         throw new Error('Application missing animal information');
       }
-      
+
       setApplication(processedApplication);
+
+      // Load saved verification data
+      if (processedApplication.verification_step_data) {
+        const savedData = processedApplication.verification_step_data;
+        if (savedData.basic_info_verification) {
+          setStepData(prev => ({ ...prev, [0]: savedData.basic_info_verification }));
+          // Mark basic info as completed if it has data
+          const newCompletedSteps = new Set(completedSteps);
+          newCompletedSteps.add(0);
+          setCompletedSteps(newCompletedSteps);
+        }
+        // Load other steps if they exist
+        // You can extend this for other verification steps
+      }
     } catch (err: any) {
       console.error('Error fetching application:', err);
       setError(err.message || 'Failed to fetch application');
@@ -140,9 +154,21 @@ export const VerificationStepper: React.FC = () => {
 
   const handleStepComplete = async (stepIndex: number, data: any) => {
     try {
-      // Save step data
+      // Save step data locally
       setStepData(prev => ({ ...prev, [stepIndex]: data }));
-      
+
+      // Save to database
+      await operatorAPI.saveVerificationStep({
+        application_id: id!,
+        step_data: {
+          step_index: stepIndex,
+          step_name: steps[stepIndex].id,
+          step_data: data,
+          completed_at: new Date().toISOString(),
+          verification_timestamp: new Date().toISOString()
+        }
+      });
+
       // Mark step as completed
       const newCompletedSteps = new Set(completedSteps);
       newCompletedSteps.add(stepIndex);
@@ -175,7 +201,7 @@ export const VerificationStepper: React.FC = () => {
           console.error('Failed to send completion email:', error);
           // Continue with the process even if email fails
         }
-        
+
         try {
           // Mark application as verified
           await operatorAPI.completeVerification(id!, {
@@ -266,7 +292,7 @@ export const VerificationStepper: React.FC = () => {
   return (
     <div className="min-h-screen relative bg-gradient-to-br from-green-50 to-white">
       <AnimatedBackground />
-      
+
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -297,13 +323,12 @@ export const VerificationStepper: React.FC = () => {
                 <div key={step.id} className="flex items-center">
                   <div className="flex items-center">
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                        step.completed
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step.completed
                           ? 'bg-green-600 text-white'
                           : step.current
-                          ? 'bg-green-100 text-green-600 ring-2 ring-green-600'
-                          : 'bg-gray-200 text-gray-600'
-                      }`}
+                            ? 'bg-green-100 text-green-600 ring-2 ring-green-600'
+                            : 'bg-gray-200 text-gray-600'
+                        }`}
                     >
                       {step.completed ? (
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -322,9 +347,8 @@ export const VerificationStepper: React.FC = () => {
                   </div>
                   {index < steps.length - 1 && (
                     <div
-                      className={`flex-1 h-0.5 ml-4 mr-4 ${
-                        step.completed ? 'bg-green-600' : 'bg-gray-200'
-                      }`}
+                      className={`flex-1 h-0.5 ml-4 mr-4 ${step.completed ? 'bg-green-600' : 'bg-gray-200'
+                        }`}
                     />
                   )}
                 </div>

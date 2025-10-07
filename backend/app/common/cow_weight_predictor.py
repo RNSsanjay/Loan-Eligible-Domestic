@@ -229,7 +229,7 @@ class CowWeightPredictor:
             right_side_image: Base64 encoded right side image
             breed: Cow breed for breed-specific calculations
             age_years: Age of the cow in years
-            prediction_mode: 'manual', 'ai', or 'visual'
+            prediction_mode: 'manual', 'ai', 'visual', or 'both'
             manual_heart_girth: Manual heart girth measurement in cm
             manual_body_length: Manual body length measurement in cm
         """
@@ -296,6 +296,7 @@ class CowWeightPredictor:
                 )
                 result.update(weight_result)
                 result["predicted_weight"] = weight_result.get("manual_weight_kg", 0)
+                result["predicted_age"] = age_years  # Use provided age for manual mode
                 result["confidence"] = weight_result.get("confidence_score", 0)
                 result["method"] = "manual_calculation"
                 
@@ -311,6 +312,7 @@ class CowWeightPredictor:
                 )
                 result.update(weight_result)
                 result["predicted_weight"] = weight_result.get("ai_weight_kg", 0)
+                result["predicted_age"] = weight_result.get("ai_age_years", age_years)  # Use AI predicted age or fallback to input
                 result["confidence"] = weight_result.get("ai_confidence", 0) / 100.0
                 result["method"] = "ai_prediction"
                 
@@ -325,6 +327,7 @@ class CowWeightPredictor:
                     )
                     result.update(weight_result)
                     result["predicted_weight"] = weight_result.get("manual_weight_kg", 0)
+                    result["predicted_age"] = age_years  # Use provided age for visual mode
                     result["confidence"] = 0.6  # Lower confidence for visual estimation
                     result["method"] = "visual_estimation"
                     result["extracted_measurements"] = measurements
@@ -334,6 +337,69 @@ class CowWeightPredictor:
                         "error": "Could not extract measurements from images",
                         "predicted_weight": None
                     }
+                    
+            elif prediction_mode == "both":
+                # Run both manual and AI predictions and combine results
+                if manual_heart_girth is None or manual_body_length is None:
+                    return {
+                        "success": False,
+                        "error": "Manual measurements required for both mode",
+                        "predicted_weight": None
+                    }
+                
+                # Get manual prediction
+                manual_result = self.predict_weight_manual_mode(
+                    manual_heart_girth, manual_body_length, breed
+                )
+                
+                # Get AI prediction
+                ai_measurements = {
+                    "visual_analysis": "Side view images provided",
+                    "breed": breed,
+                    "age_years": age_years
+                }
+                ai_result = self.predict_weight_ai_mode(
+                    ai_measurements, [left_enhanced_b64, right_enhanced_b64], breed, age_years
+                )
+                
+                # Combine results
+                manual_weight = manual_result.get("manual_weight_kg", 0)
+                ai_weight = ai_result.get("ai_weight_kg", 0)
+                manual_age = age_years  # Manual mode uses provided age
+                ai_age = ai_result.get("ai_age_years", age_years)  # AI mode uses predicted age
+                ai_confidence = ai_result.get("ai_confidence", 50) / 100.0  # Convert to 0-1 scale
+                
+                if manual_weight > 0 and ai_weight > 0:
+                    # Weighted average based on AI confidence
+                    combined_weight = (manual_weight * (1 - ai_confidence) + ai_weight * ai_confidence)
+                    combined_age = (manual_age * (1 - ai_confidence) + ai_age * ai_confidence)
+                    
+                    result.update(manual_result)
+                    result.update(ai_result)
+                    result["predicted_weight"] = combined_weight
+                    result["predicted_age"] = combined_age
+                    result["manual_weight"] = manual_weight
+                    result["ai_weight"] = ai_weight
+                    result["manual_age"] = manual_age
+                    result["ai_age"] = ai_age
+                    result["confidence"] = ai_confidence
+                    result["method"] = f"combined_manual_ai"
+                    result["weight_difference"] = abs(manual_weight - ai_weight)
+                    result["age_difference"] = abs(manual_age - ai_age)
+                    result["agreement_score"] = max(0, 1 - abs(manual_weight - ai_weight) / max(manual_weight, ai_weight))
+                elif manual_weight > 0:
+                    # Fallback to manual if AI fails
+                    result.update(manual_result)
+                    result["predicted_weight"] = manual_weight
+                    result["confidence"] = 0.5
+                    result["method"] = "manual_fallback"
+                else:
+                    return {
+                        "success": False,
+                        "error": "Both manual and AI predictions failed",
+                        "predicted_weight": None
+                    }
+                    
             else:
                 return {
                     "success": False,
@@ -377,6 +443,9 @@ class CowWeightPredictor:
         except Exception as e:
             logger.error(f"Error extracting visual measurements: {e}")
             return None
+    
+    def predict_weight_manual_mode(self, heart_girth_cm: float, body_length_cm: float, 
+                                 breed: str = 'default') -> Dict:
         """
         Manual weight prediction using heart girth formula:
         Weight = (Heart Girth * Heart Girth * Body Length) / 300
@@ -423,7 +492,7 @@ class CowWeightPredictor:
             # Create prompt for Gemini
             prompt = f"""
             You are a veterinary expert specializing in livestock weight estimation. 
-            Analyze the following cow measurements and provide an accurate weight prediction.
+            Analyze the following cow measurements and provide an accurate weight prediction and age estimation.
 
             {breed_info}
 
@@ -434,14 +503,17 @@ class CowWeightPredictor:
             1. Consider the breed characteristics and age factors
             2. Use your knowledge of cattle anatomy and weight distribution
             3. Provide weight in kilograms with reasoning
-            4. Give a confidence percentage based on measurement quality
-            5. Suggest any additional measurements that would improve accuracy
+            4. Estimate the cow's age in years based on physical characteristics
+            5. Give a confidence percentage based on measurement quality
+            6. Suggest any additional measurements that would improve accuracy
 
             Format your response as:
             PREDICTED_WEIGHT: [weight in kg]
+            PREDICTED_AGE: [age in years]
             CONFIDENCE: [percentage]
             REASONING: [your analysis]
             WEIGHT_RANGE: [min_weight - max_weight]
+            AGE_RANGE: [min_age - max_age]
             RECOMMENDATIONS: [suggestions for better accuracy]
             """
             
@@ -455,10 +527,13 @@ class CowWeightPredictor:
                     
                     results.update({
                         'ai_weight_kg': ai_analysis.get('predicted_weight', 0),
+                        'ai_age_years': ai_analysis.get('predicted_age', 0),
                         'ai_confidence': ai_analysis.get('confidence', 0),
                         'ai_reasoning': ai_analysis.get('reasoning', ''),
                         'ai_weight_range_min': ai_analysis.get('weight_range_min', 0),
                         'ai_weight_range_max': ai_analysis.get('weight_range_max', 0),
+                        'ai_age_range_min': ai_analysis.get('age_range_min', 0),
+                        'ai_age_range_max': ai_analysis.get('age_range_max', 0),
                         'ai_recommendations': ai_analysis.get('recommendations', ''),
                         'method': 'ai',
                         'ai_model': 'gemini-2.5-flash'
@@ -532,12 +607,28 @@ class CowWeightPredictor:
                         except:
                             pass
                 
-                elif line.startswith('RECOMMENDATIONS:'):
-                    result['recommendations'] = line.split(':', 1)[1].strip()
+                elif line.startswith('PREDICTED_AGE:'):
+                    age_str = line.split(':')[1].strip()
+                    # Extract number from age string
+                    age_match = ''.join(filter(str.isdigit, age_str.split()[0]))
+                    if age_match:
+                        result['predicted_age'] = float(age_match)
+                
+                elif line.startswith('AGE_RANGE:'):
+                    age_range_str = line.split(':')[1].strip()
+                    if '-' in age_range_str:
+                        try:
+                            min_a, max_a = age_range_str.split('-')
+                            result['age_range_min'] = float(''.join(filter(str.isdigit, min_a.strip())))
+                            result['age_range_max'] = float(''.join(filter(str.isdigit, max_a.strip())))
+                        except:
+                            pass
             
             # Set defaults if not found
             if 'predicted_weight' not in result:
                 result['predicted_weight'] = 0
+            if 'predicted_age' not in result:
+                result['predicted_age'] = 0
             if 'confidence' not in result:
                 result['confidence'] = 0.5
             if 'reasoning' not in result:
@@ -549,6 +640,7 @@ class CowWeightPredictor:
             logger.error(f"Error parsing AI response: {e}")
             return {
                 'predicted_weight': 0,
+                'predicted_age': 0,
                 'confidence': 0,
                 'reasoning': f'Error parsing AI response: {str(e)}'
             }

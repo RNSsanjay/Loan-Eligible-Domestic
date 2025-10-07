@@ -4,6 +4,8 @@ import { Input } from '../../common/Input';
 import { Button } from '../../common/Button';
 import { CowFaceUpload } from '../../common/CowFaceUpload';
 import { CowSideImageUpload } from '../../common/CowSideImageUpload';
+import { operatorAPI } from '../../../services/api';
+import { Zap } from 'lucide-react';
 
 interface BasicInfoVerificationProps {
   application: any;
@@ -39,6 +41,10 @@ export const BasicInfoVerification: React.FC<BasicInfoVerificationProps> = ({
     side_images_right: data.side_images_right || '',
     weight_prediction_data: data.weight_prediction_data || null,
 
+    // Age verification data
+    manual_age: data.manual_age || '',
+    ai_age_prediction: data.ai_age_prediction || null,
+
     // Additional animal details
     animal_tag_number: data.animal_tag_number || '',
     animal_unique_marks: data.animal_unique_marks || '',
@@ -48,6 +54,7 @@ export const BasicInfoVerification: React.FC<BasicInfoVerificationProps> = ({
     ...data
   });
 
+  const [isProcessingAge, setIsProcessingAge] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleInputChange = useCallback((field: string, value: any) => {
@@ -55,7 +62,39 @@ export const BasicInfoVerification: React.FC<BasicInfoVerificationProps> = ({
     if (errors[field]) {
       setErrors((prev: any) => ({ ...prev, [field]: '' }));
     }
+    // Save progress after a short delay to avoid too many API calls
+    debouncedSaveProgress();
   }, [errors]);
+
+  const saveVerificationProgress = useCallback(async () => {
+    if (!application?.id) return;
+
+    try {
+      await operatorAPI.saveVerificationStep({
+        application_id: application.id,
+        step_data: {
+          basic_info_verification: formData,
+          verification_timestamp: new Date().toISOString(),
+          step_name: 'basic_info_verification'
+        }
+      });
+    } catch (error) {
+      console.error('Failed to save verification progress:', error);
+      // Don't show error to user for auto-save failures
+    }
+  }, [application?.id, formData]);
+
+  // Debounced version of saveVerificationProgress
+  const debouncedSaveProgress = useCallback(
+    (() => {
+      let timeoutId: number;
+      return () => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(saveVerificationProgress, 2000);
+      };
+    })(),
+    [saveVerificationProgress]
+  );
 
   const handleImagesProcessed = useCallback((weightData: any) => {
     if (weightData) {
@@ -67,7 +106,54 @@ export const BasicInfoVerification: React.FC<BasicInfoVerificationProps> = ({
       handleInputChange('side_images_right', '');
       handleInputChange('weight_prediction_data', null);
     }
-  }, [handleInputChange]);
+    // Save progress immediately for image processing
+    saveVerificationProgress();
+  }, [handleInputChange, saveVerificationProgress]);
+
+  const handleAgeImagesProcessed = useCallback((ageData: any) => {
+    if (ageData) {
+      handleInputChange('age_verification_data', ageData);
+    } else {
+      handleInputChange('age_verification_data', null);
+    }
+    // Save progress immediately for age processing
+    saveVerificationProgress();
+  }, [handleInputChange, saveVerificationProgress]);
+
+  const handleAIAgePrediction = useCallback(async () => {
+    if (!formData.side_images_left || !formData.side_images_right) {
+      setErrors(prev => ({ ...prev, age_verification: 'Side images are required for AI age prediction' }));
+      return;
+    }
+
+    setIsProcessingAge(true);
+    setErrors(prev => ({ ...prev, age_verification: '' }));
+
+    try {
+      const requestData = {
+        application_id: application?.id,
+        left_side_image: formData.side_images_left,
+        right_side_image: formData.side_images_right,
+        breed: application?.animal?.breed || 'crossbred',
+        age_years: application?.animal?.age || 3,
+        prediction_mode: 'ai' as const
+      };
+
+      const result = await operatorAPI.predictCowWeight(requestData);
+
+      if (result.success && result.prediction_result) {
+        handleInputChange('ai_age_prediction', result.prediction_result);
+        // Save progress immediately after AI prediction
+        saveVerificationProgress();
+      } else {
+        setErrors(prev => ({ ...prev, age_verification: result.error || 'AI age prediction failed' }));
+      }
+    } catch (err: any) {
+      setErrors(prev => ({ ...prev, age_verification: err.response?.data?.detail || err.message || 'Failed to predict age with AI' }));
+    } finally {
+      setIsProcessingAge(false);
+    }
+  }, [formData.side_images_left, formData.side_images_right, application, handleInputChange, saveVerificationProgress]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -105,6 +191,9 @@ export const BasicInfoVerification: React.FC<BasicInfoVerificationProps> = ({
       }
       if (!formData.weight_prediction_data?.success) {
         newErrors.weight_prediction = 'Weight prediction from side images is required';
+      }
+      if (!formData.manual_age && !formData.ai_age_prediction) {
+        newErrors.age_verification = 'Age verification is required (manual entry or AI prediction)';
       }
       if (!formData.animal_tag_number) {
         newErrors.animal_tag_number = 'Animal tag number is required';
@@ -495,6 +584,74 @@ export const BasicInfoVerification: React.FC<BasicInfoVerificationProps> = ({
                   />
                   {errors.weight_prediction && (
                     <p className="text-red-600 text-sm mt-2">{errors.weight_prediction}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Cow Age Verification Section */}
+              <div className="border-t border-gray-200 pt-8">
+                <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                  <span className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-sm font-bold mr-2">5</span>
+                  Age Verification
+                </h3>
+
+                <div className="max-w-4xl">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Manual Age Input */}
+                    <div className="bg-white p-4 rounded-lg border">
+                      <h4 className="font-medium text-gray-800 mb-3">Manual Age Entry</h4>
+                      <div className="space-y-3">
+                        <Input
+                          label="Cow Age (years)"
+                          type="number"
+                          placeholder="Enter cow age"
+                          value={formData.manual_age || ''}
+                          onChange={(e) => handleInputChange('manual_age', e.target.value)}
+                          min="0"
+                          max="20"
+                          step="0.1"
+                        />
+                        {formData.manual_age && (
+                          <div className="p-3 bg-green-50 border border-green-200 rounded">
+                            <p className="text-green-800 font-medium">Manual Age: {parseFloat(formData.manual_age).toFixed(1)} years</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* AI Age Prediction */}
+                    <div className="bg-white p-4 rounded-lg border">
+                      <h4 className="font-medium text-gray-800 mb-3">AI Age Prediction</h4>
+                      <div className="space-y-3">
+                        <Button
+                          onClick={handleAIAgePrediction}
+                          disabled={!formData.side_images_left || !formData.side_images_right || isProcessingAge}
+                          className="w-full"
+                        >
+                          {isProcessingAge ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Predicting...
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="w-4 h-4 mr-2" />
+                              Predict Age with AI
+                            </>
+                          )}
+                        </Button>
+                        {formData.ai_age_prediction && (
+                          <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+                            <p className="text-blue-800 font-medium">AI Predicted Age: {formData.ai_age_prediction.predicted_age?.toFixed(1)} years</p>
+                            <p className="text-blue-600 text-sm">Confidence: {(formData.ai_age_prediction.confidence * 100)?.toFixed(1)}%</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {errors.age_verification && (
+                    <p className="text-red-600 text-sm mt-4">{errors.age_verification}</p>
                   )}
                 </div>
               </div>

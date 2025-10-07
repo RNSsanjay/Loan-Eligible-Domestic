@@ -255,6 +255,12 @@ export const WeightPredictionComponent: React.FC<WeightPredictionComponentProps>
                                         </span>
                                     </div>
                                     <div className="flex justify-between">
+                                        <span className="text-green-600">Predicted Age:</span>
+                                        <span className="font-bold text-green-800">
+                                            {predictionResult.prediction_result.predicted_age?.toFixed(1)} years
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
                                         <span className="text-green-600">Confidence:</span>
                                         <span className="font-medium text-green-700">
                                             {(predictionResult.prediction_result.confidence * 100)?.toFixed(1)}%
